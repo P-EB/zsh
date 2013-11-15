@@ -1,0 +1,78 @@
+#!/bin/zsh
+
+# debian stuff
+if [[ -r /etc/debian_version ]] ; then
+    # debian upgrade
+    #f3# Execute \kbd{apt-get update \&\& }\\&\quad \kbd{apt-get dist-upgrade}
+    upgrade() {
+        emulate -L zsh
+        if [[ -z $1 ]] ; then
+            $SUDO apt-get update
+            $SUDO apt-get -u upgrade
+        else
+            ssh $1 $SUDO apt-get update
+            # ask before the upgrade
+            local dummy
+            ssh $1 $SUDO apt-get --no-act upgrade
+            echo -n 'Process the upgrade?'
+            read -q dummy
+            if [[ $dummy == "y" ]] ; then
+                ssh $1 $SUDO apt-get -u upgrade --yes
+            fi
+        fi
+    }
+fi
+
+# TODO: Is it supported to use pager settings like this?
+#   PAGER='less -Mr' - If so, the use of $PAGER here needs fixing
+# with respect to wordsplitting. (ie. ${=PAGER})
+if check_com -c $PAGER ; then
+    #f1# View Debian's changelog of a given package
+    dchange() {
+        emulate -L zsh
+        if [[ -r /usr/share/doc/$1/changelog.Debian.gz ]] ; then
+            zcat /usr/share/doc/$1/changelog.Debian.gz | $PAGER
+        elif [[ -r /usr/share/doc/$1/changelog.gz ]] ; then
+            zcat /usr/share/doc/$1/changelog.gz | $PAGER
+        else
+            if check_com -c aptitude ; then
+                echo "No changelog for package $1 found, using aptitude to retrieve it."
+                aptitude changelog $1
+            else
+                echo "No changelog for package $1 found, sorry."
+                return 1
+            fi
+        fi
+    }
+    _dchange() { _files -W /usr/share/doc -/ }
+    compdef _dchange dchange
+
+    #f1# View Debian's NEWS of a given package
+    dnews() {
+        emulate -L zsh
+        if [[ -r /usr/share/doc/$1/NEWS.Debian.gz ]] ; then
+            zcat /usr/share/doc/$1/NEWS.Debian.gz | $PAGER
+        elif [[ -r /usr/share/doc/$1/NEWS.gz ]] ; then
+            zcat /usr/share/doc/$1/NEWS.gz | $PAGER
+        else
+            echo "No NEWS file for package $1 found, sorry."
+            return 1
+        fi
+    }
+    _dnews() { _files -W /usr/share/doc -/ }
+    compdef _dnews dnews
+
+    #f1# View upstream's changelog of a given package
+    uchange() {
+        emulate -L zsh
+        if [[ -r /usr/share/doc/$1/changelog.gz ]] ; then
+            zcat /usr/share/doc/$1/changelog.gz | $PAGER
+        else
+            echo "No changelog for package $1 found, sorry."
+            return 1
+        fi
+    }
+    _uchange() { _files -W /usr/share/doc -/ }
+    compdef _uchange uchange
+fi
+

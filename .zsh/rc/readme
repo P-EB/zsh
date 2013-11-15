@@ -1,0 +1,54 @@
+#!/bin/zsh
+# Useful stuff
+
+# some useful commands often hard to remember - let's grep for them {{{
+# actually use our zg() function now. :)
+
+# Work around ion/xterm resize bug.
+#if [[ "$SHLVL" -eq 1 ]]; then
+#       if check_com -c resize ; then
+#               eval `resize </dev/null`
+#       fi
+#fi
+
+# enable jackd:
+#  /usr/bin/jackd -dalsa -dhw:0 -r48000 -p1024 -n2
+# now play audio file:
+#  alsaplayer -o jack foobar.mp3
+
+# send files via netcat
+# on sending side:
+#  send() {j=$*; tar cpz ${j/%${!#}/}|nc -w 1 ${!#} 51330;}
+#  send dir* $HOST
+#  alias receive='nc -vlp 51330 | tar xzvp'
+
+# debian stuff:
+# dh_make -e foo@localhost -f $1
+# dpkg-buildpackage -rfakeroot
+# lintian *.deb
+# dpkg-scanpackages ./ /dev/null | gzip > Packages.gz
+# dpkg-scansources . | gzip > Sources.gz
+# grep-dctrl --field Maintainer $* /var/lib/apt/lists/*
+
+# other stuff:
+# convert -geometry 200x200 -interlace LINE -verbose
+# ldapsearch -x -b "OU=Bedienstete,O=tug" -h ldap.tugraz.at sn=$1
+# ps -ao user,pcpu,start,command
+# gpg --keyserver blackhole.pca.dfn.de --recv-keys
+# xterm -bg black -fg yellow -fn -misc-fixed-medium-r-normal--14-140-75-75-c-90-iso8859-15 -ah
+# nc -vz $1 1-1024   # portscan via netcat
+# wget --mirror --no-parent --convert-links
+# pal -d `date +%d`
+# autoload -U tetris; zle -N tetris; bindkey '...' ; echo "press ... for playing tennis"
+#
+# modify console cursor
+# see http://www.tldp.org/HOWTO/Framebuffer-HOWTO-5.html
+# print $'\e[?96;0;64c'
+# }}}
+
+## END OF FILE #################################################################
+# vim:filetype=zsh foldmethod=marker autoindent expandtab shiftwidth=4
+# Local variables:
+# mode: sh
+# End:
+

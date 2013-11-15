@@ -1,0 +1,184 @@
+
+# {{{ keybindings
+if [[ "$TERM" != emacs ]] ; then
+    [[ -z "$terminfo[kdch1]" ]] || bindkey -M emacs "$terminfo[kdch1]" delete-char
+    [[ -z "$terminfo[khome]" ]] || bindkey -M emacs "$terminfo[khome]" beginning-of-line
+    [[ -z "$terminfo[kend]"  ]] || bindkey -M emacs "$terminfo[kend]"  end-of-line
+    [[ -z "$terminfo[kdch1]" ]] || bindkey -M vicmd "$terminfo[kdch1]" vi-delete-char
+    [[ -z "$terminfo[khome]" ]] || bindkey -M vicmd "$terminfo[khome]" vi-beginning-of-line
+    [[ -z "$terminfo[kend]"  ]] || bindkey -M vicmd "$terminfo[kend]"  vi-end-of-line
+    [[ -z "$terminfo[cuu1]"  ]] || bindkey -M viins "$terminfo[cuu1]"  vi-up-line-or-history
+    [[ -z "$terminfo[cuf1]"  ]] || bindkey -M viins "$terminfo[cuf1]"  vi-forward-char
+    [[ -z "$terminfo[kcuu1]" ]] || bindkey -M viins "$terminfo[kcuu1]" vi-up-line-or-history
+    [[ -z "$terminfo[kcud1]" ]] || bindkey -M viins "$terminfo[kcud1]" vi-down-line-or-history
+    [[ -z "$terminfo[kcuf1]" ]] || bindkey -M viins "$terminfo[kcuf1]" vi-forward-char
+    [[ -z "$terminfo[kcub1]" ]] || bindkey -M viins "$terminfo[kcub1]" vi-backward-char
+    # ncurses stuff:
+    [[ "$terminfo[kcuu1]" == $'\eO'* ]] && bindkey -M viins "${terminfo[kcuu1]/O/[}" vi-up-line-or-history
+    [[ "$terminfo[kcud1]" == $'\eO'* ]] && bindkey -M viins "${terminfo[kcud1]/O/[}" vi-down-line-or-history
+    [[ "$terminfo[kcuf1]" == $'\eO'* ]] && bindkey -M viins "${terminfo[kcuf1]/O/[}" vi-forward-char
+    [[ "$terminfo[kcub1]" == $'\eO'* ]] && bindkey -M viins "${terminfo[kcub1]/O/[}" vi-backward-char
+    [[ "$terminfo[khome]" == $'\eO'* ]] && bindkey -M viins "${terminfo[khome]/O/[}" beginning-of-line
+    [[ "$terminfo[kend]"  == $'\eO'* ]] && bindkey -M viins "${terminfo[kend]/O/[}"  end-of-line
+    [[ "$terminfo[khome]" == $'\eO'* ]] && bindkey -M emacs "${terminfo[khome]/O/[}" beginning-of-line
+    [[ "$terminfo[kend]"  == $'\eO'* ]] && bindkey -M emacs "${terminfo[kend]/O/[}"  end-of-line
+fi
+
+## keybindings (run 'bindkeys' for details, more details via man zshzle)
+# use emacs style per default:
+bindkey -e
+# use vi style:
+# bindkey -v
+
+#if [[ "$TERM" == screen ]] ; then
+bindkey '\e[1~' beginning-of-line       # home
+bindkey '\e[4~' end-of-line             # end
+bindkey '\e[A'  up-line-or-search       # cursor up
+bindkey '\e[B'  down-line-or-search     # <ESC>-
+
+bindkey '^xp'   history-beginning-search-backward
+bindkey '^xP'   history-beginning-search-forward
+# bindkey -s '^L' "|less\n"             # ctrl-L pipes to less
+# bindkey -s '^B' " &\n"                # ctrl-B runs it in the background
+# if terminal type is set to 'rxvt':
+bindkey '\e[7~' beginning-of-line       # home
+bindkey '\e[8~' end-of-line             # end
+#fi
+
+# insert unicode character
+# usage example: 'ctrl-x i' 00A7 'ctrl-x i' will give you an §
+# See for example http://unicode.org/charts/ for unicode characters code
+zrcautoload insert-unicode-char
+zle -N insert-unicode-char
+#k# Insert Unicode character
+bindkey '^Xi' insert-unicode-char
+
+#m# k Shift-tab Perform backwards menu completion
+if [[ -n "$terminfo[kcbt]" ]]; then
+    bindkey "$terminfo[kcbt]" reverse-menu-complete
+elif [[ -n "$terminfo[cbt]" ]]; then # required for GNU screen
+    bindkey "$terminfo[cbt]"  reverse-menu-complete
+fi
+
+## toggle the ,. abbreviation feature on/off
+# NOABBREVIATION: default abbreviation-state
+#                 0 - enabled (default)
+#                 1 - disabled
+NOABBREVIATION=${NOABBREVIATION:-0}
+
+grml_toggle_abbrev() {
+    if (( ${NOABBREVIATION} > 0 )) ; then
+        NOABBREVIATION=0
+    else
+        NOABBREVIATION=1
+    fi
+}
+
+zle -N grml_toggle_abbrev
+bindkey '^xA' grml_toggle_abbrev
+
+# add a command line to the shells history without executing it
+commit-to-history() {
+    print -s ${(z)BUFFER}
+    zle send-break
+}
+zle -N commit-to-history
+bindkey "^x^h" commit-to-history
+
+# only slash should be considered as a word separator:
+slash-backward-kill-word() {
+    local WORDCHARS="${WORDCHARS:s@/@}"
+    # zle backward-word
+    zle backward-kill-word
+}
+zle -N slash-backward-kill-word
+
+#k# Kill everything in a word up to its last \kbd{/}
+bindkey '\ev' slash-backward-kill-word
+
+# use the new *-pattern-* widgets for incremental history search
+if is439 ; then
+    bindkey '^r' history-incremental-pattern-search-backward
+    bindkey '^s' history-incremental-pattern-search-forward
+fi
+
+if zrcautoload insert-files && zle -N insert-files ; then
+    #k# Insert files
+    bindkey "^Xf" insert-files # C-x-f
+fi
+
+bindkey ' '   magic-space    # also do history expansion on space
+#k# Trigger menu-complete
+bindkey '\ei' menu-complete  # menu completion via esc-i
+
+# press esc-e for editing command line in $EDITOR or $VISUAL
+if zrcautoload edit-command-line && zle -N edit-command-line ; then
+    #k# Edit the current line in \kbd{\$EDITOR}
+    bindkey '\ee' edit-command-line
+fi
+
+if [[ -n ${(k)modules[zsh/complist]} ]] ; then
+    #k# menu selection: pick item but stay in the menu
+    bindkey -M menuselect '\e^M' accept-and-menu-complete
+
+    # accept a completion and try to complete again by using menu
+    # completion; very useful with completing directories
+    # by using 'undo' one's got a simple file browser
+    bindkey -M menuselect '^o' accept-and-infer-next-history
+fi
+
+# press "ctrl-e d" to insert the actual date in the form yyyy-mm-dd
+_bkdate() { BUFFER="$BUFFER$(date '+%F')"; CURSOR=$#BUFFER; }
+zle -N _bkdate
+
+#k# Insert a timestamp on the command line (yyyy-mm-dd)
+bindkey '^Ed' _bkdate
+
+# press esc-m for inserting last typed word again (thanks to caphuso!)
+insert-last-typed-word() { zle insert-last-word -- 0 -1 };
+zle -N insert-last-typed-word;
+
+#k# Insert last typed word
+bindkey "\em" insert-last-typed-word
+
+function grml-zsh-fg() {
+  if (( ${#jobstates} )); then
+    zle .push-input
+    [[ -o hist_ignore_space ]] && BUFFER=' ' || BUFFER=''
+    BUFFER="${BUFFER}fg"
+    zle .accept-line
+  else
+    zle -M 'No background jobs. Doing nothing.'
+  fi
+}
+zle -N grml-zsh-fg
+#k# A smart shortcut for \kbd{fg<enter>}
+bindkey '^z' grml-zsh-fg
+
+# run command line as user root via sudo:
+sudo-command-line() {
+    [[ -z $BUFFER ]] && zle up-history
+    [[ $BUFFER != sudo\ * ]] && BUFFER="sudo $BUFFER"
+    CURSOR=$#BUFFER
+}
+zle -N sudo-command-line
+
+#k# Put the current command line into a \kbd{sudo} call
+bindkey "^Os" sudo-command-line
+
+### jump behind the first word on the cmdline.
+### useful to add options.
+function jump_after_first_word() {
+    local words
+    words=(${(z)BUFFER})
+
+    if (( ${#words} <= 1 )) ; then
+        CURSOR=${#BUFFER}
+    else
+        CURSOR=${#${words[1]}}
+    fi
+}
+zle -N jump_after_first_word
+
+bindkey '^x1' jump_after_first_word
+# }}}

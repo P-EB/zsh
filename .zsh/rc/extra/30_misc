@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+# "persistent history" {{{
+# just write important commands you always need to ~/.important_commands
+if [[ -r ~/.important_commands ]] ; then
+    fc -R ~/.important_commands
+fi
+# }}}

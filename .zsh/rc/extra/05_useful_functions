@@ -1,0 +1,412 @@
+#!/bin/zsh
+
+#f5# Backup \kbd{file {\rm to} file\_timestamp}
+bk() {
+    emulate -L zsh
+    cp -b $1 $1_`date --iso-8601=m`
+}
+
+#f5# cd to directoy and list files
+cl() {
+    emulate -L zsh
+    cd $1 && ls -al
+}
+
+#f5# Create Directoy and \kbd{cd} to it
+mcd() {
+    mkdir -p "$@" && cd "$@"
+}
+
+#f5# Memory overview
+memusage() {
+    ps aux | awk '{if (NR > 1) print $5; if (NR > 2) print "+"} END { print "p" }' | dc
+}
+
+# Function Usage: doc packagename
+#f5# \kbd{cd} to /usr/share/doc/\textit{package}
+doc() {
+    emulate -L zsh
+    cd /usr/share/doc/$1 && ls
+}
+_doc() { _files -W /usr/share/doc -/ }
+check_com compdef && compdef _doc doc
+
+#f5# Grep in history
+greph() {
+    emulate -L zsh
+    history 0 | grep $1
+}
+
+#f5# Watch manpages in a stretched style
+man2() { PAGER='dash -c "sed G | /usr/bin/less"' command man "$@" ; }
+
+#f5# Clean up directory - remove well known tempfiles
+purge() {
+    FILES=(*~(N) .*~(N) \#*\#(N) *.o(N) a.out(N) *.core(N) *.cmo(N) *.cmi(N) .*.swp(N) .*.COMPILED)
+    NBFILES=${#FILES}
+    if [[ $NBFILES > 0 ]] ; then
+        print $FILES
+        local ans
+        echo -n "Remove these files? [y/n] "
+        read -q ans
+        if [[ $ans == "y" ]] ; then
+            rm ${FILES}
+            echo ">> $PWD purged, $NBFILES files removed"
+        else
+            echo "Ok. .. then not.."
+        fi
+    fi
+}
+
+#f5# List all occurrences of programm in current PATH
+plap() {
+    emulate -L zsh
+    if [[ $# = 0 ]] ; then
+        echo "Usage:    $0 program"
+        echo "Example:  $0 zsh"
+        echo "Lists all occurrences of program in the current PATH."
+    else
+        ls -l ${^path}/*$1*(*N)
+    fi
+}
+
+# Usage: simple-extract <file>
+#f5# Smart archive extractor
+simple-extract () {
+    emulate -L zsh
+    if [[ -f $1 ]] ; then
+        case $1 in
+            *.tar.bz2)  bzip2 -v -d $1      ;;
+            *.tar.gz)   tar -xvzf $1        ;;
+            *.rar)      unrar $1            ;;
+            *.deb)      ar -x $1            ;;
+            *.bz2)      bzip2 -d $1         ;;
+            *.lzh)      lha x $1            ;;
+            *.gz)       gunzip -d $1        ;;
+            *.tar)      tar -xvf $1         ;;
+            *.tgz)      gunzip -d $1        ;;
+            *.tbz2)     tar -jxvf $1        ;;
+            *.zip)      unzip $1            ;;
+            *.Z)        uncompress $1       ;;
+            *)          echo "'$1' Error. Please go away" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+# Usage: smartcompress <file> (<type>)
+#f5# Smart archive creator
+smartcompress() {
+    emulate -L zsh
+    if [[ -n $2 ]] ; then
+        case $2 in
+            tgz | tar.gz)   tar -zcvf$1.$2 $1 ;;
+            tbz2 | tar.bz2) tar -jcvf$1.$2 $1 ;;
+            tar.Z)          tar -Zcvf$1.$2 $1 ;;
+            tar)            tar -cvf$1.$2  $1 ;;
+            gz | gzip)      gzip           $1 ;;
+            bz2 | bzip2)    bzip2          $1 ;;
+            *)
+                echo "Error: $2 is not a valid compression type"
+                ;;
+        esac
+    else
+        smartcompress $1 tar.gz
+    fi
+}
+
+# Usage: show-archive <archive>
+#f5# List an archive's content
+show-archive() {
+    emulate -L zsh
+    if [[ -f $1 ]] ; then
+        case $1 in
+            *.tar.gz)      gunzip -c $1 | tar -tf - -- ;;
+            *.tar)         tar -tf $1 ;;
+            *.tgz)         tar -ztf $1 ;;
+            *.zip)         unzip -l $1 ;;
+            *.bz2)         bzless $1 ;;
+            *.deb)         dpkg-deb --fsys-tarfile $1 | tar -tf - -- ;;
+            *)             echo "'$1' Error. Please go away" ;;
+        esac
+    else
+        echo "'$1' is not a valid archive"
+    fi
+}
+
+# It's shameless stolen from <http://www.vim.org/tips/tip.php?tip_id=167>
+#f5# Use \kbd{vim} as your manpage reader
+vman() {
+    emulate -L zsh
+    man $* | col -b | view -c 'set ft=man nomod nolist' -
+}
+
+# TODO: So, this is the third incarnation of this function!?
+#f5# Reload given functions
+refunc() {
+    for func in $argv ; do
+        unfunction $func
+        autoload $func
+    done
+}
+
+# a small check to see which DIR is located on which server/partition.
+# stolen and modified from Sven's zshrc.forall
+#f5# Report diskusage of a directory
+dirspace() {
+    emulate -L zsh
+    if [[ -n "$1" ]] ; then
+        for dir in "$@" ; do
+            if [[ -d "$dir" ]] ; then
+                ( cd $dir; echo "-<$dir>"; du -shx .; echo);
+            else
+                echo "warning: $dir does not exist" >&2
+            fi
+        done
+    else
+        for dir in $path; do
+            if [[ -d "$dir" ]] ; then
+                ( cd $dir; echo "-<$dir>"; du -shx .; echo);
+            else
+                echo "warning: $dir does not exist" >&2
+            fi
+        done
+    fi
+}
+
+#f5# Show some status info
+status() {
+    print
+    print "Date..: "$(date "+%Y-%m-%d %H:%M:%S")
+    print "Shell.: Zsh $ZSH_VERSION (PID = $$, $SHLVL nests)"
+    print "Term..: $TTY ($TERM), ${BAUD:+$BAUD bauds, }$COLUMNS x $LINES chars"
+    print "Login.: $LOGNAME (UID = $EUID) on $HOST"
+    print "System: $(cat /etc/[A-Za-z]*[_-][rv]e[lr]*)"
+    print "Uptime:$(uptime)"
+    print
+}
+
+#f5# RFC 2396 URL encoding in Z-Shell
+urlencode() {
+    emulate -L zsh
+    setopt extendedglob
+    input=( ${(s::)1} )
+    print ${(j::)input/(#b)([^A-Za-z0-9_.!~*\'\(\)-])/%${(l:2::0:)$(([##16]#match))}}
+}
+
+#f5# Indent source code
+smart-indent() {
+    indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs "$@"
+}
+
+# hl() highlighted less
+# http://ft.bewatermyfriend.org/comp/data/zsh/zfunct.html
+if check_com -c highlight ; then
+    function hl() {
+    emulate -L zsh
+        local theme lang
+        theme=${HL_THEME:-""}
+        case ${1} in
+            (-l|--list)
+                ( printf 'available languages (syntax parameter):\n\n' ;
+                    highlight --list-langs ; ) | less -SMr
+                ;;
+            (-t|--themes)
+                ( printf 'available themes (style parameter):\n\n' ;
+                    highlight --list-themes ; ) | less -SMr
+                ;;
+            (-h|--help)
+                printf 'usage: hl <syntax[:theme]> <file>\n'
+                printf '    available options: --list (-l), --themes (-t), --help (-h)\n\n'
+                printf '  Example: hl c main.c\n'
+                ;;
+            (*)
+                if [[ -z ${2} ]] || (( ${#argv} > 2 )) ; then
+                    printf 'usage: hl <syntax[:theme]> <file>\n'
+                    printf '    available options: --list (-l), --themes (-t), --help (-h)\n'
+                    (( ${#argv} > 2 )) && printf '  Too many arguments.\n'
+                    return 1
+                fi
+                lang=${1%:*}
+                [[ ${1} == *:* ]] && [[ -n ${1#*:} ]] && theme=${1#*:}
+                if [[ -n ${theme} ]] ; then
+                    highlight --xterm256 --syntax ${lang} --style ${theme} ${2} | less -SMr
+                else
+                    highlight --ansi --syntax ${lang} ${2} | less -SMr
+                fi
+                ;;
+        esac
+        return 0
+    }
+    # ... and a proper completion for hl()
+    # needs 'highlight' as well, so it fits fine in here.
+    function _hl_genarg()  {
+        local expl
+        if [[ -prefix 1 *: ]] ; then
+            local themes
+            themes=(${${${(f)"$(LC_ALL=C highlight --list-themes)"}/ #/}:#*(Installed|Use name)*})
+            compset -P 1 '*:'
+            _wanted -C list themes expl theme compadd ${themes}
+        else
+            local langs
+            langs=(${${${(f)"$(LC_ALL=C highlight --list-langs)"}/ #/}:#*(Installed|Use name)*})
+            _wanted -C list languages expl languages compadd -S ':' -q ${langs}
+        fi
+    }
+    function _hl_complete() {
+        _arguments -s '1: :_hl_genarg' '2:files:_path_files'
+    }
+    compdef _hl_complete hl
+fi
+
+# Create small urls via http://tinyurl.com using wget(1).
+function tinyurl() {
+    emulate -L zsh
+    [[ -z $1 ]] && { print "USAGE: tinyurl <URL>" ; return 1 }
+
+    local PN url tiny grabber search result preview
+    PN=$0
+    url=$1
+#   Check existence of given URL with the help of ping(1).
+#   N.B. ping(1) only works without an eventual given protocol.
+    ping -c 1 ${${url#(ftp|http)://}%%/*} >& /dev/null || \
+        read -q "?Given host ${${url#http://*/}%/*} is not reachable by pinging. Proceed anyway? [y|n] "
+
+    if (( $? == 0 )) ; then
+#           Prepend 'http://' to given URL where necessary for later output.
+            [[ ${url} != http(s|)://* ]] && url='http://'${url}
+            tiny='http://tinyurl.com/create.php?url='
+            if check_com -c wget ; then
+                grabber='wget -O- -o/dev/null'
+            else
+                print "wget is not available, but mandatory for ${PN}. Aborting."
+            fi
+#           Looking for i.e.`copy('http://tinyurl.com/7efkze')' in TinyURL's HTML code.
+            search='copy\(?http://tinyurl.com/[[:alnum:]]##*'
+            result=${(M)${${${(f)"$(${=grabber} ${tiny}${url})"}[(fr)${search}*]}//[()\';]/}%%http:*}
+#           TinyURL provides the rather new feature preview for more confidence. <http://tinyurl.com/preview.php>
+            preview='http://preview.'${result#http://}
+
+            printf '%s\n\n' "${PN} - Shrinking long URLs via webservice TinyURL <http://tinyurl.com>."
+            printf '%s\t%s\n\n' 'Given URL:' ${url}
+            printf '%s\t%s\n\t\t%s\n' 'TinyURL:' ${result} ${preview}
+    else
+        return 1
+    fi
+}
+
+#f2# Print a specific line of file(s).
+linenr () {
+# {{{
+    emulate -L zsh
+    if [ $# -lt 2 ] ; then
+       print "Usage: linenr <number>[,<number>] <file>" ; return 1
+    elif [ $# -eq 2 ] ; then
+         local number=$1
+         local file=$2
+         command ed -s $file <<< "${number}n"
+    else
+         local number=$1
+         shift
+         for file in "$@" ; do
+             if [ ! -d $file ] ; then
+                echo "${file}:"
+                command ed -s $file <<< "${number}n" 2> /dev/null
+             else
+                continue
+             fi
+         done | less
+    fi
+# }}}
+}
+
+# use it e.g. via 'Restart apache2'
+#m# f6 Start() \kbd{/etc/init.d/\em{process}}\quad\kbd{start}
+#m# f6 Restart() \kbd{/etc/init.d/\em{process}}\quad\kbd{restart}
+#m# f6 Stop() \kbd{/etc/init.d/\em{process}}\quad\kbd{stop}
+#m# f6 Reload() \kbd{/etc/init.d/\em{process}}\quad\kbd{reload}
+#m# f6 Force-Reload() \kbd{/etc/init.d/\em{process}}\quad\kbd{force-reload}
+if [[ -d /etc/init.d || -d /etc/service ]] ; then
+    __start_stop() {
+        local action_="${1:l}"  # e.g Start/Stop/Restart
+        local service_="$2"
+        local param_="$3"
+
+        local service_target_="$(readlink /etc/init.d/$service_)"
+        if [[ $service_target_ == "/usr/bin/sv" ]]; then
+            # runit
+            case "${action_}" in
+                start) if [[ ! -e /etc/service/$service_ ]]; then
+                           $SUDO ln -s "/etc/sv/$service_" "/etc/service/"
+                       else
+                           $SUDO "/etc/init.d/$service_" "${action_}" "$param_"
+                       fi ;;
+                # there is no reload in runits sysv emulation
+                reload) $SUDO "/etc/init.d/$service_" "force-reload" "$param_" ;;
+                *) $SUDO "/etc/init.d/$service_" "${action_}" "$param_" ;;
+            esac
+        else
+            # sysvinit
+            $SUDO "/etc/init.d/$service_" "${action_}" "$param_"
+        fi
+    }
+
+    for i in Start Restart Stop Force-Reload Reload ; do
+        eval "$i() { __start_stop $i \"\$1\" \"\$2\" ; }"
+    done
+fi
+
+# grep for running process, like: 'any vim'
+any() {
+    emulate -L zsh
+    if [[ -z "$1" ]] ; then
+        echo "any - grep for process(es) by keyword" >&2
+        echo "Usage: any <keyword>" >&2 ; return 1
+    else
+        local STRING=$1
+        local LENGTH=$(expr length $STRING)
+        local FIRSCHAR=$(echo $(expr substr $STRING 1 1))
+        local REST=$(echo $(expr substr $STRING 2 $LENGTH))
+        ps xauwww| grep "[$FIRSCHAR]$REST"
+    fi
+}
+
+# After resuming from suspend, system is paging heavily, leading to very bad interactivity.
+# taken from $LINUX-KERNELSOURCE/Documentation/power/swsusp.txt
+[[ -r /proc/1/maps ]] && \
+deswap() {
+    print 'Reading /proc/[0-9]*/maps and sending output to /dev/null, this might take a while.'
+    cat $(sed -ne 's:.* /:/:p' /proc/[0-9]*/maps | sort -u | grep -v '^/dev/')  > /dev/null
+    print 'Finished, running "swapoff -a; swapon -a" may also be useful.'
+}
+
+# print hex value of a number
+hex() {
+    emulate -L zsh
+    [[ -n "$1" ]] && printf "%x\n" $1 || { print 'Usage: hex <number-to-convert>' ; return 1 }
+}
+
+# calculate (or eval at all ;-)) with perl => p[erl-]eval
+# hint: also take a look at zcalc -> 'autoload zcalc' -> 'man zshmodules | less -p MATHFUNC'
+peval() {
+    [[ -n "$1" ]] && CALC="$*" || print "Usage: calc [expression]"
+    perl -e "print eval($CALC),\"\n\";"
+}
+functions peval &>/dev/null && alias calc=peval
+
+# brltty seems to have problems with utf8 environment and/or font Uni3-Terminus16 under
+# certain circumstances, so work around it, no matter which environment we have
+brltty() {
+    if [[ -z "$DISPLAY" ]] ; then
+        consolechars -f /usr/share/consolefonts/default8x16.psf.gz
+        command brltty "$@"
+    else
+        command brltty "$@"
+    fi
+}
+
+permute() {
+    F1=${1##*/}
+    cp $1 /tmp/$F1 && cp $2 $1 && cp /tmp/$F1 $2
+}

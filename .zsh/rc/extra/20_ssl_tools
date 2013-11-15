@@ -1,0 +1,57 @@
+#!/bin/zsh
+
+ssl_hashes=( sha512 sha256 sha1 md5 )
+
+for sh in ${ssl_hashes}; do
+    ssl-cert-${sh}() {
+        emulate -L zsh
+        if [[ -z $1 ]] ; then
+            printf 'usage: %s <file>\n' "ssh-cert-${sh}"
+            return 1
+        fi
+        openssl x509 -noout -fingerprint -${sh} -in $1
+    }
+done; unset sh
+
+ssl-cert-fingerprints() {
+    emulate -L zsh
+    local i
+    if [[ -z $1 ]] ; then
+        printf 'usage: ssl-cert-fingerprints <file>\n'
+        return 1
+    fi
+    for i in ${ssl_hashes}
+        do ssl-cert-$i $1;
+    done
+}
+
+ssl-cert-info() {
+    emulate -L zsh
+    if [[ -z $1 ]] ; then
+        printf 'usage: ssl-cert-info <file>\n'
+        return 1
+    fi
+    openssl x509 -noout -text -in $1
+    ssl-cert-fingerprints $1
+}
+
+# I hate lacking backward compatibility, so provide an alternative therefore
+if ! check_com -c apache2-ssl-certificate ; then
+
+    apache2-ssl-certificate() {
+
+    print 'Debian does not ship apache2-ssl-certificate anymore (see #398520). :('
+    print 'You might want to take a look at Debian the package ssl-cert as well.'
+    print 'To generate a certificate for use with apache2 follow the instructions:'
+
+    echo '
+
+export RANDFILE=/dev/random
+mkdir /etc/apache2/ssl/
+openssl req $@ -new -x509 -days 365 -nodes -out /etc/apache2/ssl/apache.pem -keyout /etc/apache2/ssl/apache.pem
+chmod 600 /etc/apache2/ssl/apache.pem
+
+Run "grml-tips ssl-certificate" if you need further instructions.
+'
+    }
+fi

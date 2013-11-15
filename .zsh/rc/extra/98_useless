@@ -1,0 +1,305 @@
+#!/bin/zsh
+
+# Found in the mailinglistarchive from Zsh (IIRC ~1996)
+#f5# Select items for specific command(s) from history
+selhist() {
+    emulate -L zsh
+    local TAB=$'\t';
+    (( $# < 1 )) && {
+        echo "Usage: $0 command"
+        return 1
+    };
+    cmd=(${(f)"$(grep -w $1 $HISTFILE | sort | uniq | pr -tn)"})
+    print -l $cmd | less -F
+    echo -n "enter number of desired command [1 - $(( ${#cmd[@]} - 1 ))]: "
+    local answer
+    read answer
+    print -z "${cmd[$answer]#*$TAB}"
+}
+
+# Use vim to convert plaintext to HTML
+#f5# Transform files to html with highlighting
+2html() {
+    emulate -L zsh
+    vim -u NONE -n -c ':syntax on' -c ':so $VIMRUNTIME/syntax/2html.vim' -c ':wqa' $1 &>/dev/null
+}
+
+# function readme() { $PAGER -- (#ia3)readme* }
+#f5# View all README-like files in current directory in pager
+readme() {
+    emulate -L zsh
+    local files
+    files=(./(#i)*(read*me|lue*m(in|)ut)*(ND))
+    if (($#files)) ; then
+        $PAGER $files
+    else
+        print 'No README files.'
+    fi
+}
+
+# function ansi-colors()
+#f5# Display ANSI colors
+ansi-colors() {
+    typeset esc="\033[" line1 line2
+    echo " _ _ _40 _ _ _41_ _ _ _42 _ _ 43_ _ _ 44_ _ _45 _ _ _ 46_ _ _ 47_ _ _ 49_ _"
+    for fore in 30 31 32 33 34 35 36 37; do
+        line1="$fore "
+        line2="   "
+        for back in 40 41 42 43 44 45 46 47 49; do
+            line1="${line1}${esc}${back};${fore}m Normal ${esc}0m"
+            line2="${line2}${esc}${back};${fore};1m Bold   ${esc}0m"
+        done
+        echo -e "$line1\n$line2"
+    done
+}
+
+# % slow_print `cat /etc/passwd`
+#f5# Slowly print out parameters
+slow_print() {
+    for argument in "$@" ; do
+        for ((i = 1; i <= ${#1} ;i++)) ; do
+            print -n "${argument[i]}"
+            sleep 0.08
+        done
+        print -n " "
+    done
+    print ""
+}
+
+# Rip an audio CD
+#f5# Rip an audio CD
+audiorip() {
+    mkdir -p ~/ripps
+    cd ~/ripps
+    cdrdao read-cd --device $DEVICE --driver generic-mmc audiocd.toc
+    cdrdao read-cddb --device $DEVICE --driver generic-mmc audiocd.toc
+    echo " * Would you like to burn the cd now? (yes/no)"
+    read input
+    if [[ "$input" = "yes" ]] ; then
+        echo " ! Burning Audio CD"
+        audioburn
+        echo " * done."
+    else
+        echo " ! Invalid response."
+    fi
+}
+
+# and burn it
+#f5# Burn an audio CD (in combination with audiorip)
+audioburn() {
+    cd ~/ripps
+    cdrdao write --device $DEVICE --driver generic-mmc audiocd.toc
+    echo " * Should I remove the temporary files? (yes/no)"
+    read input
+    if [[ "$input" = "yes" ]] ; then
+        echo " ! Removing Temporary Files."
+        cd ~
+        rm -rf ~/ripps
+        echo " * done."
+    else
+        echo " ! Invalid response."
+    fi
+}
+
+#f5# Make an audio CD from all mp3 files
+mkaudiocd() {
+    # TODO: do the renaming more zshish, possibly with zmv()
+    emulate -L zsh
+    cd ~/ripps
+    for i in *.[Mm][Pp]3; do mv "$i" `echo $i | tr '[A-Z]' '[a-z]'`; done
+    for i in *.mp3; do mv "$i" `echo $i | tr ' ' '_'`; done
+    for i in *.mp3; do mpg123 -w `basename $i .mp3`.wav $i; done
+    normalize -m *.wav
+    for i in *.wav; do sox $i.wav -r 44100 $i.wav resample; done
+}
+
+#f5# Create an ISO image. You are prompted for\\&\quad volume name, filename and directory
+mkiso() {
+    emulate -L zsh
+    echo " * Volume name "
+    read volume
+    echo " * ISO Name (ie. tmp.iso)"
+    read iso
+    echo " * Directory or File"
+    read files
+    mkisofs -o ~/$iso -A $volume -allow-multidot -J -R -iso-level 3 -V $volume -R $files
+}
+
+#f5# Simple thumbnails generator
+genthumbs() {
+    rm -rf thumb-* index.html
+    echo "
+<html>
+  <head>
+    <title>Images</title>
+  </head>
+  <body>" > index.html
+    for f in *.(gif|jpeg|jpg|png) ; do
+        convert -size 100x200 "$f" -resize 100x200 thumb-"$f"
+        echo "    <a href=\"$f\"><img src=\"thumb-$f\"></a>" >> index.html
+    done
+    echo "
+  </body>
+</html>" >> index.html
+}
+
+#f5# Set all ulimit parameters to \kbd{unlimited}
+allulimit() {
+    ulimit -c unlimited
+    ulimit -d unlimited
+    ulimit -f unlimited
+    ulimit -l unlimited
+    ulimit -n unlimited
+    ulimit -s unlimited
+    ulimit -t unlimited
+}
+
+# ogg2mp3 with bitrate of 192
+ogg2mp3_192() {
+    emulate -L zsh
+    oggdec -o - $1 | lame -b 192 - ${1:r}.mp3
+}
+
+#f5# Install x-lite (VoIP software)
+getxlite() {
+    emulate -L zsh
+    setopt errreturn
+    [[ -d ~/tmp ]] || mkdir ~/tmp
+    cd ~/tmp
+
+    echo "Downloading http://www.counterpath.com/download/X-Lite_Install.tar.gz and storing it in ~/tmp:"
+    if wget http://www.counterpath.com/download/X-Lite_Install.tar.gz ; then
+        unp X-Lite_Install.tar.gz && echo done || echo failed
+    else
+        echo "Error while downloading." ; return 1
+    fi
+
+    if [[ -x xten-xlite/xtensoftphone ]] ; then
+        echo "Execute xten-xlite/xtensoftphone to start xlite."
+    fi
+}
+
+#f5# Install skype
+getskype() {
+    emulate -L zsh
+    setopt errreturn
+    echo "Downloading debian package of skype."
+    echo "Notice: If you want to use a more recent skype version run 'getskypebeta'."
+    wget http://www.skype.com/go/getskype-linux-deb
+    $SUDO dpkg -i skype*.deb && echo "skype installed."
+}
+
+#f5# Install beta-version of skype
+getskypebeta() {
+    emulate -L zsh
+    setopt errreturn
+    echo "Downloading debian package of skype (beta version)."
+    wget http://www.skype.com/go/getskype-linux-beta-deb
+    $SUDO dpkg -i skype-beta*.deb && echo "skype installed."
+}
+
+#f5# Install gizmo (VoIP software)
+getgizmo() {
+    emulate -L zsh
+    setopt errreturn
+    echo "libgtk2.0-0, gconf2, libstdc++6, libasound2 and zlib1g have to be available. Installing."
+    $SUDO apt-get update
+    $SUDO apt-get install libgtk2.0-0 gconf2 libstdc++6 libasound2 zlib1g
+    wget "$(lynx --dump http://gizmo5.com/pc/download/linux/ | awk '/libstdc\+\+6.*\.deb/ {print $2}')"
+    $SUDO dpkg -i gizmo-project*.deb && echo "gizmo installed."
+}
+
+#f5# Get and run AIR (Automated Image and Restore)
+getair() {
+    emulate -L zsh
+    setopt errreturn
+    [[ -w . ]] || { echo 'Error: you do not have write permissions in this directory. Exiting.' ; return 1 }
+    local VER='1.2.8'
+    wget http://puzzle.dl.sourceforge.net/sourceforge/air-imager/air-$VER.tar.gz
+    tar zxf air-$VER.tar.gz
+    cd air-$VER
+    INTERACTIVE=no $SUDO ./install-air-1.2.8
+    [[ -x /usr/local/bin/air ]] && [[ -n "$DISPLAY" ]] && $SUDO air
+}
+
+# http://strcat.de/blog/index.php?/archives/335-Software-sauber-deinstallieren...html
+#f5# Log 'make install' output
+mmake() {
+    emulate -L zsh
+    [[ ! -d ~/.errorlogs ]] && mkdir ~/.errorlogs
+    make -n install > ~/.errorlogs/${PWD##*/}-makelog
+}
+
+# usage example: 'lcheck strcpy'
+#f5# Find out which libs define a symbol
+lcheck() {
+    if [[ -n "$1" ]] ; then
+        nm -go /usr/lib/lib*.a 2>/dev/null | grep ":[[:xdigit:]]\{8\} . .*$1"
+    else
+        echo "Usage: lcheck <function>" >&2
+    fi
+}
+
+# make sure it is not assigned yet
+[[ -n ${aliases[utf2iso]} ]] && unalias utf2iso
+utf2iso() {
+    if isutfenv ; then
+        for ENV in $(env | command grep -i '.utf') ; do
+            eval export "$(echo $ENV | sed 's/UTF-8/iso885915/ ; s/utf8/iso885915/')"
+        done
+    fi
+}
+
+# make sure it is not assigned yet
+[[ -n ${aliases[iso2utf]} ]] && unalias iso2utf
+iso2utf() {
+    if ! isutfenv ; then
+        for ENV in $(env | command grep -i '\.iso') ; do
+            eval export "$(echo $ENV | sed 's/iso.*/UTF-8/ ; s/ISO.*/UTF-8/')"
+        done
+    fi
+}
+
+# if cdrecord is a symlink (to wodim) or isn't present at all warn:
+if [[ -L /usr/bin/cdrecord ]] || ! check_com -c cdrecord; then
+    if check_com -c wodim; then
+        cdrecord() {
+            cat <<EOMESS
+cdrecord is not provided under its original name by Debian anymore.
+See #377109 in the BTS of Debian for more details.
+
+Please use the wodim binary instead
+EOMESS
+            return 1
+        }
+    fi
+fi
+
+# get_tw_cli has been renamed into get_3ware
+if check_com -c get_3ware ; then
+    get_tw_cli() {
+        echo 'Warning: get_tw_cli has been renamed into get_3ware. Invoking get_3ware for you.'>&2
+        get_3ware
+    }
+fi
+
+###############################
+#   When I was young…         #
+###############################
+
+stp() {
+    COMMAND=$(tail -n 2 ~/.zsh/history-$h | head -n 1)
+    COMMAND=${COMMAND#*;}
+    COMMAND=$(echo $COMMAND | sed -e "s/^sudo //")
+    echo "sudo ${COMMAND}" | zsh
+}
+
+mytest() {
+    key="${1%\=*}" ;  val="${1#*\=}"
+    strictkey="${1%%\=*}" ; strictval="${1##*\=}"
+    arg="${1%\=}"
+    echo "Key : ${key}"
+    echo "Val : ${val}"
+    echo "Arg : ${arg}"
+}
+

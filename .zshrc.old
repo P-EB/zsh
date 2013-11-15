@@ -1,0 +1,911 @@
+# This file should *NOT* be used. I keep it because it was my start point
+# for my new .zshrc
+###############################################################################
+# This file is sourced only for interactive shells. It
+# should contain commands to set up aliases, functions,
+# options, key bindings, etc.
+#
+# Global Order: zshenv, zprofile, zshrc, zlogin
+################################################################################
+
+ZSHDIR=$HOME/.zsh
+
+# source conf files.
+for file in $ZSHDIR/rc/base/*; do
+    source $file
+done
+# done
+
+# {{{ autoloading
+zrcautoload zmv    # who needs mmv or rename?
+zrcautoload history-search-end
+
+# we don't want to quote/espace URLs on our own...
+# if autoload -U url-quote-magic ; then
+#    zle -N self-insert url-quote-magic
+#    zstyle ':url-quote-magic:*' url-metas '*?[]^()~#{}='
+# else
+#    print 'Notice: no url-quote-magic available :('
+# fi
+alias url-quote='autoload -U url-quote-magic ; zle -N self-insert url-quote-magic'
+
+#m# k ESC-h Call \kbd{run-help} for the 1st word on the command line
+alias run-help >&/dev/null && unalias run-help
+for rh in run-help{,-git,-svk,-svn}; do
+    zrcautoload $rh
+done; unset rh
+
+# completion system
+if zrcautoload compinit ; then
+    compinit || print 'Notice: no compinit available :('
+else
+    print 'Notice: no compinit available :('
+    function zstyle { }
+    function compdef { }
+fi
+
+zrcautoload zed # use ZLE editor to edit a file or function
+
+for mod in complist deltochar mathfunc ; do
+    zmodload -i zsh/${mod} 2>/dev/null || print "Notice: no ${mod} available :("
+done
+
+# autoload zsh modules when they are referenced
+tmpargs=(
+    a   stat
+    a   zpty
+    ap  mapfile
+)
+
+while (( ${#tmpargs} > 0 )) ; do
+    zmodload -${tmpargs[1]} zsh/${tmpargs[2]} ${tmpargs[2]}
+    shift 2 tmpargs
+done
+unset tmpargs
+
+for file in $ZSHDIR/rc/extra/*; do
+    source $file
+done
+
+
+# }}}
+
+# {{{ history
+
+h=$(hostname --fqdn)
+
+#v#
+HISTFILE=$ZSHDIR/history-$h
+HISTSIZE=100000
+SAVEHIST=100000
+export HISTFILE HISTSIZE SAVEHIST
+
+# }}}
+
+# dirstack handling {{{
+
+DIRSTACKSIZE=${DIRSTACKSIZE:-20}
+DIRSTACKFILE=${DIRSTACKFILE:-${HOME}/.zdirs}
+
+if [[ -f ${DIRSTACKFILE} ]] && [[ ${#dirstack[*]} -eq 0 ]] ; then
+    dirstack=( ${(f)"$(< $DIRSTACKFILE)"} )
+    # "cd -" won't work after login by just setting $OLDPWD, so
+    [[ -d $dirstack[0] ]] && cd $dirstack[0] && cd $OLDPWD
+fi
+
+chpwd() {
+    local -ax my_stack
+    my_stack=( ${PWD} ${dirstack} )
+    builtin print -l ${(u)my_stack} >! ${DIRSTACKFILE}
+}
+
+# }}}
+
+# directory based profiles {{{
+
+CHPWD_PROFILE='default'
+function chpwd_profiles() {
+    # Say you want certain settings to be active in certain directories.
+    # This is what you want.
+    #
+    # zstyle ':chpwd:profiles:/usr/src/grml(|/|/*)'   profile grml
+    # zstyle ':chpwd:profiles:/usr/src/debian(|/|/*)' profile debian
+    #
+    # When that's done and you enter a directory that matches the pattern
+    # in the third part of the context, a function called chpwd_profile_grml,
+    # for example, is called (if it exists).
+    #
+    # If no pattern matches (read: no profile is detected) the profile is
+    # set to 'default', which means chpwd_profile_default is attempted to
+    # be called.
+    #
+    # A word about the context (the ':chpwd:profiles:*' stuff in the zstyle
+    # command) which is used: The third part in the context is matched against
+    # ${PWD}. That's why using a pattern such as /foo/bar(|/|/*) makes sense.
+    # Because that way the profile is detected for all these values of ${PWD}:
+    #   /foo/bar
+    #   /foo/bar/
+    #   /foo/bar/baz
+    # So, if you want to make double damn sure a profile works in /foo/bar
+    # and everywhere deeper in that tree, just use (|/|/*) and be happy.
+    #
+    # The name of the detected profile will be available in a variable called
+    # 'profile' in your functions. You don't need to do anything, it'll just
+    # be there.
+    #
+    # Then there is the parameter $CHPWD_PROFILE is set to the profile, that
+    # was is currently active. That way you can avoid running code for a
+    # profile that is already active, by running code such as the following
+    # at the start of your function:
+    #
+    # function chpwd_profile_grml() {
+    #     [[ ${profile} == ${CHPWD_PROFILE} ]] && return 1
+    #   ...
+    # }
+    #
+    # The initial value for $CHPWD_PROFILE is 'default'.
+    #
+    # Version requirement:
+    #   This feature requires zsh 4.3.3 or newer.
+    #   If you use this feature and need to know whether it is active in your
+    #   current shell, there are several ways to do that. Here are two simple
+    #   ways:
+    #
+    #   a) If knowing if the profiles feature is active when zsh starts is
+    #      good enough for you, you can put the following snippet into your
+    #      .zshrc.local:
+    #
+    #   (( ${+functions[chpwd_profiles]} )) && print "directory profiles active"
+    #
+    #   b) If that is not good enough, and you would prefer to be notified
+    #      whenever a profile changes, you can solve that by making sure you
+    #      start *every* profile function you create like this:
+    #
+    #   function chpwd_profile_myprofilename() {
+    #       [[ ${profile} == ${CHPWD_PROFILE} ]] && return 1
+    #       print "chpwd(): Switching to profile: $profile"
+    #     ...
+    #   }
+    #
+    #      That makes sure you only get notified if a profile is *changed*,
+    #      not everytime you change directory, which would probably piss
+    #      you off fairly quickly. :-)
+    #
+    # There you go. Now have fun with that.
+    local -x profile
+
+    zstyle -s ":chpwd:profiles:${PWD}" profile profile || profile='default'
+    if (( ${+functions[chpwd_profile_$profile]} )) ; then
+        chpwd_profile_${profile}
+    fi
+
+    CHPWD_PROFILE="${profile}"
+    return 0
+}
+chpwd_functions=( ${chpwd_functions} chpwd_profiles )
+
+# }}}
+
+battery() {
+    PERCENT="${${"$(acpi 2>/dev/null)"}/(#b)[[:space:]]#Battery <->: [^0-9]##, (<->)%*/${match[1]}}"
+}
+
+batcolor() {
+    battery
+    if [ ! -z $PERCENT ]; then
+        if [ $PERCENT -gt 65 ]; then
+            BATTCOLOR="${GREEN}"
+        else
+            if [ $PERCENT -gt 32 ]; then
+                BATTCOLOR="${YELLOW}"
+            else
+                BATTCOLOR="${RED}"
+            fi
+        fi
+    else
+        BATTCOLOR=""
+    fi
+    if (acpi | head -n 1 | grep "Charging") 2> /dev/null 1>&2; then
+        BATTCOLOR="${CYAN}"
+    fi
+}
+
+batkikoo() {
+    local BLOB
+    PRETTYBATT=""
+    BLOB=$PERCENT
+    for (( i=10; i<= BLOB - 10; i += 10 )); do
+        PRETTYBATT="=${PRETTYBATT}"
+    done
+    PRETTYBATT="<${PRETTYBATT}"
+    if (( PERCENT <= 10 )); then
+        PRETTYBATT=""
+        for (( i=1; i<= BLOB - 1; i += 1 )); do
+            PRETTYBATT="X${PRETTYBATT}"
+        done
+        PRETTYBATT="X${PRETTYBATT}"
+    fi
+    PRETTYBATT="${PRETTYBATT}${DC}"
+}
+# }}}
+
+datecolor() {
+    local H date coul
+    H=$(date +"%H")
+    date=$(date +"%H:%M:%S")
+
+    if [ $H -gt 8 -a $H -lt 22 ]; then
+        coul=${CYAN}
+    else
+        coul=${BLUE}
+    fi
+
+    echo "${coul}${date}${DC}"
+}
+
+# set colors for use in prompts {{{
+gencolors() {
+    if zrcautoload colors 2> /dev/null && colors 2>/dev/null ; then
+        BLUE="${fg[blue]}"
+        RED="${fg_bold[red]}"
+        GREEN="${fg[green]}"
+        CYAN="${fg[cyan]}"
+        MAGENTA="${fg[magenta]}"
+        YELLOW="${fg[yellow]}"
+        WHITE="${fg[white]}"
+        NO_COLOUR="${reset_color}"
+    else
+        BLUE=$'\e[1;34m'
+        RED=$'\e[1;31m'
+        GREEN=$'\e[1;32m'
+        CYAN=$'\e[1;36m'
+        WHITE=$'\e[1;37m'
+        MAGENTA=$'\e[1;35m'
+        YELLOW=$'\e[1;33m'
+        NO_COLOUR=$'\e[0m'
+    fi
+}
+# }}}
+gencolors
+
+# {{{ make sure our environment is clean regarding colors
+delcolors() {
+    for color in BLUE RED GREEN CYAN YELLOW MAGENTA WHITE ; unset $color
+}
+# }}}
+
+# command not found handling {{{
+
+function command_not_found_handler() {
+    emulate -L zsh
+    if [[ -x /usr/share/command-not-found/command-not-found ]] ; then
+        /usr/share/command-not-found/command-not-found $1
+    fi
+    return 1
+}
+
+# }}}
+
+# {{{ set prompt
+if zrcautoload promptinit && promptinit 2>/dev/null ; then
+    promptinit # people should be able to use their favourite prompt
+else
+    print 'Notice: no promptinit available :('
+fi
+
+setopt prompt_subst
+
+# make sure to use right prompt only when not running a command
+setopt transient_rprompt
+
+
+function ESC_print () {
+    info_print $'\ek' $'\e\\' "$@"
+}
+function set_title () {
+    info_print  $'\e]0;' $'\a' "$@"
+}
+
+function info_print () {
+    local esc_begin esc_end
+    esc_begin="$1"
+    esc_end="$2"
+    shift 2
+    printf '%s' ${esc_begin}
+    for item in "$@" ; do
+        printf '%s ' "$item"
+    done
+    printf '%s' "${esc_end}"
+}
+
+# VCS stuff
+
+# Change vcs_info formats for the grml prompt. The 2nd format sets up
+# $vcs_info_msg_1_ to contain "zsh: repo-name" used to set our screen title.
+# TODO: The included vcs_info() version still uses $VCS_INFO_message_N_.
+#       That needs to be the use of $VCS_INFO_message_N_ needs to be changed
+#       to $vcs_info_msg_N_ as soon as we use the included version.
+if [[ "$TERM" == dumb ]] ; then
+    zstyle ':vcs_info:*' actionformats "(%s)-[%r/%b|%a]" "(%s)-[%r/%b|%a]"
+    zstyle ':vcs_info:*' formats       "(%s)-[%r/%b]"    "(%s)-[%r/%b]"
+else
+    # these are the same, just with a lot of colours:
+    zstyle ':vcs_info:*' actionformats "${MAGENTA}(${NO_COLOUR}%s${MAGENTA})${YELLOW}-${MAGENTA}[${GREEN}%r${YELLOW}/${GREEN}%b${YELLOW}|${RED}%a${MAGENTA}]${NO_COLOUR}" \
+                                       "(%s)-[%r/%b|%a]" 
+    zstyle ':vcs_info:*' formats       "${MAGENTA}(${NO_COLOUR}%s${MAGENTA})${YELLOW}-${MAGENTA}[${GREEN}%r${YELLOW}/${GREEN}%b${MAGENTA}]${NO_COLOUR}" \
+                                       "(%s)-[%r/%b]"
+    zstyle ':vcs_info:(sv[nk]|bzr):*' branchformat "%b${RED}:${YELLOW}%r"
+fi
+
+precmd () {
+    EXITCODE=$?
+    gencolors
+#   Default Color
+    DC=$GREEN
+
+    # update VCS information
+    vcs_info
+
+    if [[ $TERM == screen* ]] ; then
+        if [[ -n ${VCS_INFO_message_1_} ]] ; then
+            ESC_print ${VCS_INFO_message_1_}
+        else
+            ESC_print "zsh"
+        fi
+    fi
+    
+    # update battery (dropped into $PERCENT) information
+    firstline
+
+    if [ ! acpi 2>&1 | grep "No support" -o ! check_com acpi ] >/dev/null 2>&1  ; then
+#~#
+#~# Affichage de l'état de la batterie
+#~#
+        batcolor
+        bpre=""
+        bpost=""
+#~#
+#~# On a le choix entre un affichage kikoo
+#~# Ou un standard
+#~# Make your choice
+#~#
+#~#   Standard
+        BATTERY="${BATTCOLOR}${PERCENT} %%"
+
+#~#   Kikoo
+#~#    batkikoo
+#~#    BATTERY="${BATTCOLOR}${PRETTYBATT}"
+        if [ -z $PERCENT ]; then
+            BATTERY=""
+        else
+            if (( PERCENT <= 15 )); then
+                BATTERY="Warning: ${BATTERY}"
+            fi
+        fi
+
+    #RPROMPT="%(?..:() ${PERCENT} %*"
+        if (( EUID != 0 )); then
+            RPROMPT=$BATTERY
+        else
+            RPROMPT=$BATTERY
+        fi
+
+        RPROMPT="${DC}${bpre}${RPROMPT}${bpost}${NO_COLOUR}"
+    else
+        RPROMPT=""
+    fi
+    
+    # adjust title of xterm
+    # see http://www.faqs.org/docs/Linux-mini/Xterm-Title.html
+    [[ ${NOTITLE} -gt 0 ]] && return 0
+    case $TERM in
+        (xterm*|rxvt*)
+            set_title ${(%):-"%n@%m: %~"}
+            ;;
+    esac
+
+    delcolors
+}
+
+# preexec() => a function running before every command
+preexec () {
+# set hostname if not running on host with name 'grml'
+    if [[ -n "$HOSTNAME" ]] && [[ "$HOSTNAME" != $(hostname) ]] ; then
+       NAME="@$HOSTNAME"
+    fi
+# get the name of the program currently running and hostname of local machine
+# set screen window title if running in a screen
+    if [[ "$TERM" == screen* ]] ; then
+        # local CMD=${1[(wr)^(*=*|sudo|ssh|-*)]}       # don't use hostname
+        local CMD="${1[(wr)^(*=*|sudo|ssh|-*)]}$NAME" # use hostname
+        ESC_print ${CMD}
+    fi
+# adjust title of xterm
+    [[ ${NOTITLE} -gt 0 ]] && return 0
+    case $TERM in
+        (xterm*|rxvt*)
+            set_title "${(%):-"%n@%m:"}" "$1"
+            ;;
+    esac
+}
+
+PS2='\`%_> '      # secondary prompt, printed when the shell needs more information to complete a command.
+PS3='?# '         # selection prompt used within a select loop.
+PS4='+%N:%i:%_> ' # the execution trace prompt (setopt xtrace). default: '+%N:%i>'
+
+# set variable debian_chroot if running in a chroot with /etc/debian_chroot
+if [[ -z "$debian_chroot" ]] && [[ -r /etc/debian_chroot ]] ; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+function firstline {
+    local i VCSLEN VCS pwdl pwdr pre post int date PWDC LEN
+    local MEAS COMP FIRSTLINE BATTERY
+
+#~#
+#~#   Déco
+#~#
+    pwdl="< " #2
+    pwdr=" >" #2
+    pre="+--( " #5
+    post=" )" #2
+    int="---" #3
+    date="$(datecolor)"
+
+#~#
+#~#   Affichage du PWD, avec troncature à plus de 34 caractères
+#~#
+    if (( $COLUMNS <= 87 )); then
+        PWDLEN=22
+    else
+        PWDLEN=$(( COLUMNS - 65))
+    fi
+    TILDE=~
+    if (echo $PWD | grep $TILDE > /dev/null 2>&1); then
+        PWDC="~${PWD/#$TILDE/}"
+    else
+        PWDC=${PWD}
+    fi
+    if (( $#PWDC >= $PWDLEN )); then
+        PWDC="…$PWDC[-$PWDLEN,-1]"
+    else
+        PWDC="$PWDC"
+    fi
+    LEN=$#PWDC
+    PWDC="${MAGENTA}${PWDC}${DC}"
+    VCSLEN=$#VCS_INFO_message_1_
+    VCS=$VCS_INFO_message_0_
+    
+#~#   Gestion de l'exitcode
+    ELEN=$#EXITCODE
+    epre="-[ "
+    epost=" ]-"
+    if (( EXITCODE == 0 )); then
+        EXITCODE="${NO_COLOUR}${EXITCODE}${DC}"
+    else
+        if (( EUID != 0 )); then
+            EXITCODE="${RED}${EXITCODE}${DC}"
+        else
+            EXITCODE="${BLUE}${EXITCODE}${DC}"
+        fi
+    fi
+#~#   On complète la firstline
+    MEAS=$(( 5 + 8 + 2 + 3 + 2 + LEN + 2 + VCSLEN + 3 + $#epre + ELEN + $#epost ))
+    COMP=""
+    for (( i = 1; i<= COLUMNS - MEAS); i += 1 )); do
+        COMP="${COMP}-"
+    done;
+    FIRSTLINE="${DC}${pre}${date}${post}${int}${pwdl}${PWDC}${pwdr}${COMP}${VCS}${DC}${int}${epre}${EXITCODE}${epost}${NO_COLOUR}"
+    print -rb $FIRSTLINE
+}
+
+# don't use colors on dumb terminals (like emacs):
+if [[ "$TERM" == dumb ]] ; then
+    PROMPT="${debian_chroot:+($debian_chroot)}%n@%m %# "
+else
+    # only if $GRMLPROMPT is set (e.g. via 'GRMLPROMPT=1 zsh') use the extended prompt
+    # set variable identifying the chroot you work in (used in the prompt below)
+    if [[ $GRMLPROMPT -gt 0 ]] ; then
+        PROMPT="${CYAN}[%j running job(s)] ${GREEN}{history#%!} ${RED}%(3L.+.) ${BLUE}%* %D${BLUE}%n${NO_COLOUR}@%m %# "
+    else
+        # This assembles the primary prompt string
+        if (( EUID != 0 )); then
+            PROMPT="%{${WHITE}%}${debian_chroot:+($debian_chroot)}%{${BLUE}%}%n%{${NO_COLOUR}%}@%m %# "
+        else
+            PROMPT="%{${WHITE}%}${debian_chroot:+($debian_chroot)}%{${RED}%}%n%{${NO_COLOUR}%}@%m %# "
+        fi
+    fi
+fi
+
+# if we are inside a grml-chroot set a specific prompt theme
+if [[ -n "$GRML_CHROOT" ]] ; then
+    PROMPT="%{$fg[red]%}(CHROOT) %{$fg_bold[red]%}%n%{$fg_no_bold[white]%}@%m %40<...<%B%~%b%<< %\# "
+fi
+# }}}
+
+# {{{ 'hash' some often used directories
+#d# start
+hash -d deb=/var/cache/apt/archives
+hash -d doc=/usr/share/doc
+hash -d linux=/lib/modules/$(command uname -r)/build/
+hash -d log=/var/log
+hash -d slog=/var/log/syslog
+hash -d src=/usr/src
+hash -d templ=/usr/share/doc/grml-templates
+hash -d tt=/usr/share/doc/texttools-doc
+hash -d www=/var/www
+#d# end
+# }}}
+
+# I like clean prompt, so provide simple way to get that
+check_com 0 || alias 0='return 0'
+
+unlimit
+limit stack 8192
+limit -s
+
+# called later (via grmlcomp)
+# note: use 'zstyle' for getting current settings
+#         press ^Xh (control-x h) for getting tags in context; ^X? (control-x ?) to run complete_debug with trace output
+grmlcomp() {
+    # TODO: This could use some additional information
+
+    # allow one error for every three characters typed in approximate completer
+    zstyle ':completion:*:approximate:'    max-errors 'reply=( $((($#PREFIX+$#SUFFIX)/3 )) numeric )'
+
+    # don't complete backup files as executables
+    zstyle ':completion:*:complete:-command-::commands' ignored-patterns '(aptitude-*|*\~)'
+
+    # start menu completion only if it could find no unambiguous initial string
+    zstyle ':completion:*:correct:*'       insert-unambiguous true
+    zstyle ':completion:*:corrections'     format $'%{\e[0;31m%}%d (errors: %e)%{\e[0m%}'
+    zstyle ':completion:*:correct:*'       original true
+
+    # activate color-completion
+    zstyle ':completion:*:default'         list-colors ${(s.:.)LS_COLORS}
+
+    # format on completion
+    zstyle ':completion:*:descriptions'    format $'%{\e[0;31m%}completing %B%d%b%{\e[0m%}'
+
+    # complete 'cd -<tab>' with menu
+    zstyle ':completion:*:*:cd:*:directory-stack' menu yes select
+
+    # insert all expansions for expand completer
+    zstyle ':completion:*:expand:*'        tag-order all-expansions
+    zstyle ':completion:*:history-words'   list false
+
+    # activate menu
+    zstyle ':completion:*:history-words'   menu yes
+
+    # ignore duplicate entries
+    zstyle ':completion:*:history-words'   remove-all-dups yes
+    zstyle ':completion:*:history-words'   stop yes
+
+    # match uppercase from lowercase
+    zstyle ':completion:*'                 matcher-list 'm:{a-z}={A-Z}'
+
+    # separate matches into groups
+    zstyle ':completion:*:matches'         group 'yes'
+    zstyle ':completion:*'                 group-name ''
+
+    # if there are more than 5 options allow selecting from a menu
+    zstyle ':completion:*'               menu select=5
+
+    zstyle ':completion:*:messages'        format '%d'
+    zstyle ':completion:*:options'         auto-description '%d'
+
+    # describe options in full
+    zstyle ':completion:*:options'         description 'yes'
+
+    # on processes completion complete all user processes
+    zstyle ':completion:*:processes'       command 'ps -au$USER'
+
+    # offer indexes before parameters in subscripts
+    zstyle ':completion:*:*:-subscript-:*' tag-order indexes parameters
+
+    # provide verbose completion information
+    zstyle ':completion:*'                 verbose true
+
+    # recent (as of Dec 2007) zsh versions are able to provide descriptions
+    # for commands (read: 1st word in the line) that it will list for the user
+    # to choose from. The following disables that, because it's not exactly fast.
+    zstyle ':completion:*:-command-:*:'    verbose false
+
+    # set format for warnings
+    zstyle ':completion:*:warnings'        format $'%{\e[0;31m%}No matches for:%{\e[0m%} %d'
+
+    # define files to ignore for zcompile
+    zstyle ':completion:*:*:zcompile:*'    ignored-patterns '(*~|*.zwc)'
+    zstyle ':completion:correct:'          prompt 'correct to: %e'
+
+    # Ignore completion functions for commands you don't have:
+    zstyle ':completion::(^approximate*):*:functions' ignored-patterns '_*'
+
+    # Provide more processes in completion of programs like killall:
+    zstyle ':completion:*:processes-names' command 'ps c -u ${USER} -o command | uniq'
+
+    # complete manual by their section
+    zstyle ':completion:*:manuals'    separate-sections true
+    zstyle ':completion:*:manuals.*'  insert-sections   true
+    zstyle ':completion:*:man:*'      menu yes select
+
+    # provide .. as a completion
+    zstyle ':completion:*' special-dirs ..
+
+    # run rehash on completion so new installed program are found automatically:
+    _force_rehash() {
+        (( CURRENT == 1 )) && rehash
+        return 1
+    }
+
+    ## correction
+    # try to be smart about when to use what completer...
+    setopt correct
+    zstyle -e ':completion:*' completer '
+        if [[ $_last_try != "$HISTNO$BUFFER$CURSOR" ]] ; then
+            _last_try="$HISTNO$BUFFER$CURSOR"
+            reply=(_complete _match _ignored _prefix _files)
+        else
+            if [[ $words[1] == (rm|mv) ]] ; then
+                reply=(_complete _files)
+            else
+                reply=(_oldlist _expand _force_rehash _complete _ignored _correct _approximate _files)
+            fi
+        fi'
+
+    # command for process lists, the local web server details and host completion
+    zstyle ':completion:*:urls' local 'www' '/var/www/' 'public_html'
+
+    # caching
+    [[ -d $ZSHDIR/cache ]] && zstyle ':completion:*' use-cache yes && \
+                            zstyle ':completion::complete:*' cache-path $ZSHDIR/cache/
+
+    # host completion /* add brackets as vim can't parse zsh's complex cmdlines 8-) {{{ */
+    [[ -r ~/.ssh/known_hosts ]] && _ssh_hosts=(${${${${(f)"$(<$HOME/.ssh/known_hosts)"}:#[\|]*}%%\ *}%%,*}) || _ssh_hosts=()
+    [[ -r /etc/hosts ]] && : ${(A)_etc_hosts:=${(s: :)${(ps:\t:)${${(f)~~"$(</etc/hosts)"}%%\#*}##[:blank:]#[^[:blank:]]#}}} || _etc_hosts=()
+    hosts=(
+        $(hostname)
+        "$_ssh_hosts[@]"
+        "$_etc_hosts[@]"
+        grml.org
+        localhost
+    )
+    zstyle ':completion:*:hosts' hosts $hosts
+    # TODO: so, why is this here?
+    #  zstyle '*' hosts $hosts
+
+    # use generic completion system for programs not yet defined; (_gnu_generic works
+    # with commands that provide a --help option with "standard" gnu-like output.)
+    for compcom in cp deborphan df feh fetchipac head hnb ipacsum mv \
+                   pal stow tail uname ; do
+        [[ -z ${_comps[$compcom]} ]] && compdef _gnu_generic ${compcom}
+    done; unset compcom
+
+    # see upgrade function in this file
+    compdef _hosts upgrade
+}
+
+grmlstuff() {
+# people should use 'grml-x'!
+    startx() {
+        if [[ -e /etc/X11/xorg.conf ]] ; then
+            [[ -x /usr/bin/startx ]] && /usr/bin/startx "$@" || /usr/X11R6/bin/startx "$@"
+        else
+            echo "Please use the script \"grml-x\" for starting the X Window System
+because there does not exist /etc/X11/xorg.conf yet.
+If you want to use startx anyway please call \"/usr/bin/startx\"."
+            return -1
+        fi
+    }
+
+    xinit() {
+        if [[ -e /etc/X11/xorg.conf ]] ; then
+            [[ -x /usr/bin/xinit ]] && /usr/bin/xinit || /usr/X11R6/bin/xinit
+        else
+            echo "Please use the script \"grml-x\" for starting the X Window System.
+because there does not exist /etc/X11/xorg.conf yet.
+If you want to use xinit anyway please call \"/usr/bin/xinit\"."
+            return -1
+        fi
+    }
+
+    if check_com -c 915resolution; then
+        855resolution() {
+            echo "Please use 915resolution as resolution modifying tool for Intel \
+graphic chipset."
+            return -1
+        }
+    fi
+
+    #a1# Output version of running grml
+    alias grml-version='cat /etc/grml_version'
+
+    if check_com -c rebuildfstab ; then
+        #a1# Rebuild /etc/fstab
+        alias grml-rebuildfstab='rebuildfstab -v -r -config'
+    fi
+
+    if check_com -c grml-debootstrap ; then
+        debian2hd() {
+            echo "Installing debian to harddisk is possible by using grml-debootstrap."
+            return 1
+        }
+    fi
+}
+
+grmlcomp
+
+# {{{ keephack
+xsource "/etc/zsh/keephack"
+# }}}
+
+# {{{ wonderful idea of using "e" glob qualifier by Peter Stephenson
+# You use it as follows:
+# $ NTREF=/reference/file
+# $ ls -l *(e:nt:)
+# This lists all the files in the current directory newer than the reference file.
+# You can also specify the reference file inline; note quotes:
+# $ ls -l *(e:'nt ~/.zshenv':)
+nt() {
+    if [[ -n $1 ]] ; then
+        local NTREF=${~1}
+    fi
+    [[ $REPLY -nt $NTREF ]]
+}
+# }}}
+
+# shell functions {{{
+
+#f1# Provide csh compatibility
+setenv()  { typeset -x "${1}${1:+=}${(@)argv[2,$#]}" }  # csh compatibility
+
+#f1# Reload an autoloadable function
+freload() { while (( $# )); do; unfunction $1; autoload -U $1; shift; done }
+compdef _functions freload
+
+#f1# List symlinks in detail (more detailed version of 'readlink -f' and 'whence -s')
+sll() {
+    [[ -z "$1" ]] && printf 'Usage: %s <file(s)>\n' "$0" && return 1
+    for file in "$@" ; do
+        while [[ -h "$file" ]] ; do
+            ls -l $file
+            file=$(readlink "$file")
+        done
+    done
+}
+
+# fast manual access
+if check_com qma ; then
+    #f1# View the zsh manual
+    manzsh()  { qma zshall "$1" }
+    compdef _man qma
+else
+    manzsh()  { /usr/bin/man zshall |  vim -c "se ft=man| se hlsearch" +/"$1" - ; }
+fi
+
+# zsh profiling
+profile() {
+    ZSH_PROFILE_RC=1 $SHELL "$@"
+}
+
+#f1# Edit an alias via zle
+edalias() {
+    [[ -z "$1" ]] && { echo "Usage: edalias <alias_to_edit>" ; return 1 } || vared aliases'[$1]' ;
+}
+compdef _aliases edalias
+
+#f1# Edit a function via zle
+edfunc() {
+    [[ -z "$1" ]] && { echo "Usage: edfun <function_to_edit>" ; return 1 } || zed -f "$1" ;
+}
+compdef _functions edfunc
+
+#f1# Provides useful information on globbing
+H-Glob() {
+    echo -e "
+    /      directories
+    .      plain files
+    @      symbolic links
+    =      sockets
+    p      named pipes (FIFOs)
+    *      executable plain files (0100)
+    %      device files (character or block special)
+    %b     block special files
+    %c     character special files
+    r      owner-readable files (0400)
+    w      owner-writable files (0200)
+    x      owner-executable files (0100)
+    A      group-readable files (0040)
+    I      group-writable files (0020)
+    E      group-executable files (0010)
+    R      world-readable files (0004)
+    W      world-writable files (0002)
+    X      world-executable files (0001)
+    s      setuid files (04000)
+    S      setgid files (02000)
+    t      files with the sticky bit (01000)
+
+  print *(m-1)          # Files modified up to a day ago
+  print *(a1)           # Files accessed a day ago
+  print *(@)            # Just symlinks
+  print *(Lk+50)        # Files bigger than 50 kilobytes
+  print *(Lk-50)        # Files smaller than 50 kilobytes
+  print **/*.c          # All *.c files recursively starting in \$PWD
+  print **/*.c~file.c   # Same as above, but excluding 'file.c'
+  print (foo|bar).*     # Files starting with 'foo' or 'bar'
+  print *~*.*           # All Files that do not contain a dot
+  chmod 644 *(.^x)      # make all plain non-executable files publically readable
+  print -l *(.c|.h)     # Lists *.c and *.h
+  print **/*(g:users:)  # Recursively match all files that are owned by group 'users'
+  echo /proc/*/cwd(:h:t:s/self//) # Analogous to >ps ax | awk '{print $1}'<"
+}
+alias help-zshglob=H-Glob #dépendant du truc au dessus
+
+
+# "persistent history" {{{
+# just write important commands you always need to ~/.important_commands
+if [[ -r ~/.important_commands ]] ; then
+    fc -R ~/.important_commands
+fi
+# }}}
+
+#:grep:marker:for:mika: :-)
+### non-root (EUID != 0) code below
+###
+
+### CLEAN COLORS
+delcolors
+
+# variables {{{
+
+# set terminal property (used e.g. by msgid-chooser)
+export COLORTERM="yes"
+
+# set default browser
+if [[ -z "$BROWSER" ]] ; then
+    if [[ -n "$DISPLAY" ]] ; then
+        #v# If X11 is running
+        check_com -c firefox && export BROWSER=firefox
+    else
+        #v# If no X11 is running
+        check_com -c w3m && export BROWSER=w3m
+    fi
+fi
+
+#m# v QTDIR \kbd{/usr/share/qt[34]}\quad [for non-root only]
+[[ -d /usr/share/qt3 ]] && export QTDIR=/usr/share/qt3
+[[ -d /usr/share/qt4 ]] && export QTDIR=/usr/share/qt4
+
+# support running 'jikes *.java && jamvm HelloWorld' OOTB:
+#v# [for non-root only]
+[[ -f /usr/share/classpath/glibj.zip ]] && export JIKESPATH=/usr/share/classpath/glibj.zip
+# }}}
+
+stp() {
+    COMMAND=$(tail -n 2 ~/.zsh/history-$h | head -n 1)
+    COMMAND=${COMMAND#*;}
+    COMMAND=$(echo $COMMAND | sed -e "s/^sudo //")
+    echo "sudo ${COMMAND}" | zsh
+}
+
+mytest() {
+    key="${1%\=*}" ;  val="${1#*\=}"
+    strictkey="${1%%\=*}" ; strictval="${1##*\=}"
+    arg="${1%\=}"
+    echo "Key : ${key}"
+    echo "Val : ${val}"
+    echo "Arg : ${arg}"
+}
+
+#########################################
+##      YOUR PERSONNAL STUFF HERE      ##
+#########################################
+
+# Print list of connected people
+w
+
+# Delete remaining xfunctions
+xunfunction
+
+# }}}
+

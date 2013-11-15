@@ -1,0 +1,204 @@
+#/bin/zsh
+
+# {{{ some aliases
+if check_com -c screen ; then
+    if [[ -r $HOME/.screenrc ]] ; then
+        alias screen="${commands[screen]} -c $HOME/.screenrc"
+    fi
+fi
+
+# do we have GNU ls with color-support?
+if ls --help 2>/dev/null | grep -- --color= >/dev/null && [[ "$TERM" != dumb ]] ; then
+    #a1# execute \kbd{@a@}:\quad ls with colors
+    alias ls='ls -b -CF --color=auto'
+    #a1# execute \kbd{@a@}:\quad list all files, with colors
+    alias la='ls -la --color=auto'
+    #a1# long colored list, without dotfiles (@a@)
+    alias ll='ls -l --color=auto'
+    #a1# long colored list, human readable sizes (@a@)
+    alias lh='ls -hAl --color=auto'
+    #a1# List files, append qualifier to filenames \\&\quad(\kbd{/} for directories, \kbd{@} for symlinks ...)
+    alias l='ls -lF --color=auto'
+else
+    alias ls='ls -b -CF'
+    alias la='ls -la'
+    alias ll='ls -l'
+    alias lh='ls -hAl'
+    alias l='ls -lF'
+fi
+
+alias mdstat='cat /proc/mdstat'
+alias ...='cd ../../'
+
+# generate alias named "$KERNELVERSION-reboot" so you can use boot with kexec:
+if [[ -x /sbin/kexec ]] && [[ -r /proc/cmdline ]] ; then
+    alias "$(uname -r)-reboot"="kexec -l --initrd=/boot/initrd.img-"$(uname -r)" --command-line=\"$(cat /proc/cmdline)\" /boot/vmlinuz-"$(uname -r)""
+fi
+
+alias cp='nocorrect cp -i'         # no spelling correction on cp
+alias mkdir='nocorrect mkdir'   # no spelling correction on mkdir
+alias mv='nocorrect mv -i'         # no spelling correction on mv
+alias rm='nocorrect rm -i'         # no spelling correction on rm
+
+#a1# Execute \kbd{rmdir}
+alias rd='rmdir'
+#a1# Execute \kbd{mkdir}
+alias md='mkdir'
+
+# see http://www.cl.cam.ac.uk/~mgk25/unicode.html#term for details
+alias term2iso="echo 'Setting terminal to iso mode' ; print -n '\e%@'"
+alias term2utf="echo 'Setting terminal to utf-8 mode'; print -n '\e%G'"
+
+# get top 10 shell commands:
+alias top10='print -l ? ${(o)history%% *} | uniq -c | sort -nr | head -n 10'
+
+if [[ -r /etc/debian_version ]] ; then
+    #a3# Execute \kbd{apt-cache search}
+    alias acs='apt-cache search'
+    #a3# Execute \kbd{apt-cache show}
+    alias acsh='apt-cache show'
+    #a3# Execute \kbd{apt-cache policy}
+    alias acp='apt-cache policy'
+    #a3# Execute \kbd{apt-get dist-upgrade}
+    salias adg="apt-get dist-upgrade"
+    #a3# Execute \kbd{apt-get install}
+    salias agi="apt-get install"
+    #a3# Execute \kbd{aptitude install}
+    salias ati="aptitude install"
+    #a3# Execute \kbd{apt-get upgrade}
+    salias ag="apt-get upgrade"
+    #a3# Execute \kbd{apt-get update}
+    salias au="apt-get update"
+    #a3# Execute \kbd{aptitude update ; aptitude safe-upgrade}
+    salias -a up="aptitude update ; aptitude safe-upgrade"
+    #a3# Execute \kbd{dpkg-buildpackage}
+    alias dbp='dpkg-buildpackage'
+    #a3# Execute \kbd{grep-excuses}
+    alias ge='grep-excuses'
+
+    #a1# Take a look at the syslog: \kbd{\$PAGER /var/log/syslog}
+    salias llog="$PAGER /var/log/syslog"     # take a look at the syslog
+    #a1# Take a look at the syslog: \kbd{tail -f /var/log/syslog}
+    salias tlog="tail -f /var/log/syslog"    # follow the syslog
+fi
+
+# sort installed Debian-packages by size
+if check_com -c grep-status ; then
+    #a3# List installed Debian-packages sorted by size
+    alias debs-by-size='grep-status -FStatus -sInstalled-Size,Package -n "install ok installed" | paste -sd "  \n" | sort -rn'
+fi
+
+# use colors when GNU grep with color-support
+#a2# Execute \kbd{grep -{}-color=auto}
+(grep --help 2>/dev/null |grep -- --color) >/dev/null && alias grep='grep --color=auto'
+#a2# Execute \kbd{grep -i -{}-color=auto}
+alias GREP='grep -i --color=auto'
+
+# highlight important stuff in diff output, usage example: hg diff | hidiff
+#m# a2 hidiff \kbd{histring} oneliner for diffs
+check_com -c histring && \
+    alias hidiff="histring -fE '^Comparing files .*|^diff .*' | histring -c yellow -fE '^\-.*' | histring -c green -fE '^\+.*'"
+
+# Xterm resizing-fu.
+# Based on http://svn.kitenet.net/trunk/home-full/.zshrc?rev=11710&view=log (by Joey Hess)
+alias tiny='echo -en "\033]50;xft:DejaVu Sans Mono-4\007"'
+alias small='echo -en "\033]50;xft:DejaVu Sans Mono-5\007"'
+alias medium='echo -en "\033]50;xft:DejaVu Sans Mono-6\007"'
+alias default='echo -e "\033]50;xft:DejaVu Sans Mono-8\007"'
+alias large='echo -en "\033]50;xft:DejaVu Sans Mono-12\007"'
+alias huge='echo -en "\033]50;xft:DejaVu Sans Mono-16\007"'
+
+# general
+#a2# Execute \kbd{du -sch}
+alias da='du -sch'
+#a2# Execute \kbd{jobs -l}
+alias j='jobs -l'
+
+# compile stuff
+#a2# Execute \kbd{./configure}
+alias CO="./configure"
+#a2# Execute \kbd{./configure --help}
+alias CH="./configure --help"
+
+# listing stuff
+#a2# Execute \kbd{ls -lSrah}
+alias dir="ls -lSrah"
+#a2# Only show dot-directories
+alias lad='ls -d .*(/)'                # only show dot-directories
+#a2# Only show dot-files
+alias lsa='ls -a .*(.)'                # only show dot-files
+#a2# Only files with setgid/setuid/sticky flag
+alias lss='ls -l *(s,S,t)'             # only files with setgid/setuid/sticky flag
+#a2# Only show 1st ten symlinks
+alias lsl='ls -l *(@)'                 # only symlinks
+#a2# Display only executables
+alias lsx='ls -l *(*)'                 # only executables
+#a2# Display world-{readable,writable,executable} files
+alias lsw='ls -ld *(R,W,X.^ND/)'       # world-{readable,writable,executable} files
+#a2# Display the ten biggest files
+alias lsbig="ls -flh *(.OL[1,10])"     # display the biggest files
+#a2# Only show directories
+alias lsd='ls -d *(/)'                 # only show directories
+#a2# Only show empty directories
+alias lse='ls -d *(/^F)'               # only show empty directories
+#a2# Display the ten newest files
+alias lsnew="ls -rl *(D.om[1,10])"     # display the newest files
+#a2# Display the ten oldest files
+alias lsold="ls -rtlh *(D.om[1,10])"   # display the oldest files
+#a2# Display the ten smallest files
+alias lssmall="ls -Srl *(.oL[1,10])"   # display the smallest files
+
+# chmod
+#a2# Execute \kbd{chmod 600}
+alias rw-='chmod 600'
+#a2# Execute \kbd{chmod 700}
+alias rwx='chmod 700'
+#m# a2 r-{}- Execute \kbd{chmod 644}
+alias r--='chmod 644'
+#a2# Execute \kbd{chmod 755}
+alias r-x='chmod 755'
+
+# some useful aliases
+#a2# Execute \kbd{mkdir -o}
+alias md='mkdir -p'
+
+# console stuff
+#a2# Execute \kbd{mplayer -vo fbdev}
+alias cmplayer='mplayer -vo fbdev'
+#a2# Execute \kbd{mplayer -vo fbdev -fs -zoom}
+alias fbmplayer='mplayer -vo fbdev -fs -zoom'
+#a2# Execute \kbd{links2 -driver fb}
+alias fblinks='links2 -driver fb'
+
+#a2# ssh with StrictHostKeyChecking=no \\&\quad and UserKnownHostsFile unset
+alias insecssh='ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null"'
+alias insecscp='scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null"'
+
+alias emacs='emacsclient --alternate-editor="" -nw'
+
+# simple webserver
+check_com -c python && alias http="python -m SimpleHTTPServer"
+
+# Use 'g' instead of 'git':
+check_com g || alias g='git'
+
+# work around non utf8 capable software in utf environment via $LANG and luit
+if check_com isutfenv && check_com luit ; then
+    if check_com -c mrxvt ; then
+        isutfenv && [[ -n "$LANG" ]] && \
+            alias mrxvt="LANG=${LANG/(#b)(*)[.@]*/$match[1].iso885915} luit mrxvt"
+    fi
+
+    if check_com -c aterm ; then
+        isutfenv && [[ -n "$LANG" ]] && \
+            alias aterm="LANG=${LANG/(#b)(*)[.@]*/$match[1].iso885915} luit aterm"
+    fi
+
+    if check_com -c centericq ; then
+        isutfenv && [[ -n "$LANG" ]] && \
+            alias centericq="LANG=${LANG/(#b)(*)[.@]*/$match[1].iso885915} luit centericq"
+    fi
+fi
+
+check_com -c qma && alias ?='qma zshall'
+

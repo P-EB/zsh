@@ -1,0 +1,80 @@
+#!/bin/zsh
+# Fichier contenant des fonctions "pratiques" de manipulation de
+# VCS comme git ou cvs ou autre
+
+#f5# Cvs add
+cvsa() {
+    emulate -L zsh
+    cvs add $* && cvs com -m 'initial checkin' $*
+}
+#f5# Cvs diff
+cvsd() {
+    emulate -L zsh
+    cvs diff -N $* |& $PAGER
+}
+#f5# Cvs log
+cvsl() {
+    emulate -L zsh
+    cvs log $* |& $PAGER
+}
+#f5# Cvs update
+cvsq() {
+    emulate -L zsh
+    cvs -nq update
+}
+#f5# Rcs2log
+cvsr() {
+    emulate -L zsh
+    rcs2log $* | $PAGER
+}
+#f5# Cvs status
+cvss() {
+    emulate -L zsh
+    cvs status -v $*
+}
+
+#f5# Find all files in \$PATH with setuid bit set
+suidfind() { ls -latg $path | grep '^...s' }
+
+#f5# Get specific git commitdiff
+git-get-diff() {
+    emulate -L zsh
+    if [[ -z $GITTREE ]] ; then
+        GITTREE='linux/kernel/git/torvalds/linux-2.6.git'
+    fi
+    if ! [[ -z $1 ]] ; then
+        ${=BROWSER} "http://kernel.org/git/?p=$GITTREE;a=commitdiff;h=$1"
+    else
+        echo "Usage: git-get-diff <commit>"
+    fi
+}
+
+#f5# Get specific git commit
+git-get-commit() {
+    emulate -L zsh
+    if [[ -z $GITTREE ]] ; then
+        GITTREE='linux/kernel/git/torvalds/linux-2.6.git'
+    fi
+    if ! [[ -z $1 ]] ; then
+        ${=BROWSER} "http://kernel.org/git/?p=$GITTREE;a=commit;h=$1"
+    else
+        echo "Usage: git-get-commit <commit>"
+    fi
+}
+
+#f5# Get specific git diff
+git-get-plaindiff () {
+    emulate -L zsh
+    if [[ -z $GITTREE ]] ; then
+       GITTREE='linux/kernel/git/torvalds/linux-2.6.git'
+    fi
+    if [[ -z $1 ]] ; then
+       echo 'Usage: git-get-plaindiff '
+    else
+       echo -n "Downloading $1.diff ... "
+       # avoid "generating ..." stuff from kernel.org server:
+       wget --quiet "http://kernel.org/git/?p=$GITTREE;a=commitdiff_plain;h=$1" -O /dev/null
+       wget --quiet "http://kernel.org/git/?p=$GITTREE;a=commitdiff_plain;h=$1" -O $1.diff \
+            && echo done || echo failed
+    fi
+}
