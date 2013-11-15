@@ -12,7 +12,7 @@ if ls --help 2>/dev/null | grep -- --color= >/dev/null && [[ "$TERM" != dumb ]] 
     #a1# execute \kbd{@a@}:\quad ls with colors
     alias ls='ls -b -CF --color=auto'
     #a1# execute \kbd{@a@}:\quad list all files, with colors
-    alias la='ls -la --color=auto'
+    alias la='ls -lA --color=auto'
     #a1# long colored list, without dotfiles (@a@)
     alias ll='ls -l --color=auto'
     #a1# long colored list, human readable sizes (@a@)
@@ -21,7 +21,7 @@ if ls --help 2>/dev/null | grep -- --color= >/dev/null && [[ "$TERM" != dumb ]] 
     alias l='ls -lF --color=auto'
 else
     alias ls='ls -b -CF'
-    alias la='ls -la'
+    alias la='ls -lA'
     alias ll='ls -l'
     alias lh='ls -hAl'
     alias l='ls -lF'
