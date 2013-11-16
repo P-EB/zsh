@@ -407,7 +407,8 @@ brltty() {
     fi
 }
 
+# switches two files
 permute() {
     F1=${1##*/}
-    cp $1 /tmp/$F1 && cp $2 $1 && cp /tmp/$F1 $2
+    cp $1 /tmp/$F1 && cp $2 $1 && mv /tmp/$F1 $2
 }

@@ -128,11 +128,38 @@ xunfunction() {
 
 #}}}
 
+# Handles command not fount error
 function command_not_found_handler() {
     emulate -L zsh
     if [[ -x /usr/share/command-not-found/command-not-found ]] ; then
         /usr/share/command-not-found/command-not-found $1
     fi
     return 1
+}
+
+# Gets battery percentage.
+battery() {
+    PERCENT="${${"$(acpi 2>/dev/null)"}/(#b)[[:space:]]#Battery <->: [^0-9]##, (<->)%*/${match[1]}}"
+}
+
+# Sets color in BATTCOLOR, designed to be used with RPROMPT.
+batcolor() {
+    battery
+    if [ ! -z $PERCENT ]; then
+        if [ $PERCENT -gt 65 ]; then
+            BATTCOLOR="%F{green}"
+        else
+            if [ $PERCENT -gt 32 ]; then
+                BATTCOLOR="%F{yellow}"
+            else
+                BATTCOLOR="%F{red}"
+            fi
+        fi
+    else
+        BATTCOLOR=""
+    fi
+    if (acpi | head -n 1 | grep "Charging") 2> /dev/null 1>&2; then
+        BATTCOLOR="%F{cyan}"
+    fi
 }
 

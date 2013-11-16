@@ -7,6 +7,7 @@ done
 
 xsource "/etc/sysconfig/keyboard"
 
+#Sets timezone
 TZ=$(xcat /etc/timezone)
 
 # set editor
@@ -19,6 +20,7 @@ fi
 # color setup for ls:
 check_com -c dircolors && eval $(dircolors -b)
 
+# Pager
 export PAGER=less
 
 # personnal mail
@@ -38,6 +40,7 @@ export LESS_TERMCAP_ue=$'\E[0m'           # end underline
 export LESS_TERMCAP_us=$'\E[04;38;5;146m' # begin underline
 export LESS="-SR"
 
+# does not need export
 MAILCHECK=30       # mailchecks
 REPORTTIME=5       # report about cpu-/system-/user-time of command if running longer than 5 seconds
 watch=(notme root) # watch for everyone but me and root

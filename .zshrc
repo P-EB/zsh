@@ -93,7 +93,9 @@ chpwd() {
     builtin print -l ${(u)my_stack} >! ${DIRSTACKFILE}
 }
 
-#In order to set prompt, and because we love confort
+# In order to set prompt, and because we love confort
+# These files are not mandatory, but removing them
+# would break the PS1 prompt.
 for file in $ZSHDIR/rc/extra/*; do
     source $file
 done
@@ -172,30 +174,6 @@ else
     zstyle ':vcs_info:(sv[nk]|bzr):*' branchformat "%b{red}:{yellow}%r"
 fi
 
-battery() {
-    PERCENT="${${"$(acpi 2>/dev/null)"}/(#b)[[:space:]]#Battery <->: [^0-9]##, (<->)%*/${match[1]}}"
-}
-
-batcolor() {
-    battery
-    if [ ! -z $PERCENT ]; then
-        if [ $PERCENT -gt 65 ]; then
-            BATTCOLOR="${GREEN}"
-        else
-            if [ $PERCENT -gt 32 ]; then
-                BATTCOLOR="${YELLOW}"
-            else
-                BATTCOLOR="${RED}"
-            fi
-        fi
-    else
-        BATTCOLOR=""
-    fi
-    if (acpi | head -n 1 | grep "Charging") 2> /dev/null 1>&2; then
-        BATTCOLOR="${CYAN}"
-    fi
-}
-
 # datecolor() {
 #     local H date coul
 #     H=$(date +"%H")
@@ -212,6 +190,8 @@ batcolor() {
 
 # Built from /usr/share/zsh/functions/Prompts/prompt_adam2…
 EXITCODE="%(?..[%?]%1v)"
+
+# Set of chars used in prompt
 prompt_tlc='.'
 prompt_mlc='|'
 prompt_blc='\`'
@@ -219,27 +199,33 @@ prompt_hyphen='-'
 prompt_color1='cyan'    # hyphens
 prompt_color2='green'   # current directory
 prompt_color3='cyan'   # user@host
-prompt_color4='white'   # user input
+prompt_color4='red'   # user input
 prompt_color5='yellow'
 
+# see man zshmisc for explanation about %B, %F, %b…
 prompt_tbox="%B%F{$prompt_color1}${prompt_tlc}%b%F{$prompt_color1}${prompt_hyphen}"
 prompt_bbox="%B%F{$prompt_color1}${prompt_blc}${prompt_hyphen}%b%F{$prompt_color1}"
 
 # This is a cute hack.  Well I like it, anyway.
 prompt_bbox_to_mbox=$'%{\e[A\r'"%}%B%F{$prompt_color1}${prompt_mlc}%b%F{$prompt_color1}${prompt_hyphen}%{"$'\e[B%}'
 
+# left and right parenthesis
 prompt_l_paren="%B%F{black}("
 prompt_r_paren="%B%F{black})"
 
-prompt_user_host="%b%F{$prompt_color3}%n%B%F{$prompt_color3}@%b%F{$prompt_color3}%m"
+# User : %n, host : %M
+prompt_user_host="%b%F{$prompt_color3}%n%B%F{$prompt_color3}@%b%F{$prompt_color3}%M"
 
+# line 1 is pwd, username, host, hour…
 prompt_line_1a="$prompt_tbox$prompt_l_paren%B%F{$prompt_color5}%*$prompt_r_paren%b%F{$prompt_color1}$prompt_hyphen$prompt_l_paren%B%F{$prompt_color2}%~$prompt_r_paren%b%F{$prompt_color1}"
 prompt_line_1b="$prompt_l_paren$prompt_user_host$prompt_r_paren%b%F{$prompt_color1}${prompt_hyphen}"
 
+# line 2 is prompt
 prompt_line_2="$prompt_bbox${prompt_hyphen}%B%F{white}"
 prompt_char="%(!.#.>)"
 prompt_opts=(cr subst percent)
 
+# This function is called before each prompt regenation
 precmd () {
     setopt noxtrace localoptions extendedglob
     local prompt_line_1
@@ -256,21 +242,10 @@ precmd () {
 
     RPROMPT="%(?..:()"
     
-    if [ ! acpi 2>&1 | grep "No support" -o ! check_com acpi ] >/dev/null 2>&1  ; then
-        # update battery (dropped into $BATTERY) information
-        batcolor
-        BATTERY="${BATTCOLOR}${PERCENT} %%"
-
-        if [ -z $PERCENT ]; then
-            BATTERY=""
-        else
-            if (( PERCENT <= 15 )); then
-                BATTERY="Warning: ${BATTERY}"
-            fi
-        fi
-
-        RPROMPT="${BATTERY} ${RPROMPT}"
-    fi
+    # Generates battery info
+    batcolor
+    BATTERY="${BATTCOLOR}${PERCENT} %%"
+    RPROMPT="${BATTERY} ${RPROMPT}"
     
     # adjust title of xterm
     # see http://www.faqs.org/docs/Linux-mini/Xterm-Title.html
@@ -287,31 +262,41 @@ precmd () {
   
     local prompt_padding_size=$(( COLUMNS - prompt_line_1a_width - prompt_line_1b_width - prompt_vcs_width - 2 ))
 
-    # Try to fit in long path and user@host.
+    # Try to fit in long path and user@host, and vcs_info
     if (( prompt_padding_size > 0 )); then
       local prompt_padding
       eval "prompt_padding=\${(l:${prompt_padding_size}::${prompt_hyphen}:)_empty_zz}"
       prompt_line_1="$prompt_line_1a$prompt_padding$prompt_hyphen$VCS_INFO_message_0_%F{$prompt_color1}$prompt_hyphen$prompt_line_1b"
     else
-        prompt_padding_size=$(( COLUMNS - prompt_line_1a_width - prompt_vcs_width - 2))
+        prompt_padding_size=$(( COLUMNS - prompt_line_1a_width - prompt_vcs_width - 2 ))
       
-        # Didn't fit; try to fit in just long path.
+        # Didn't fit; try to fit in long path and vcs_info
         if (( prompt_padding_size > 0 )); then
-          local prompt_padding
-          eval "prompt_padding=\${(l:${prompt_padding_size}::${prompt_hyphen}:)_empty_zz}"
-          prompt_line_1="$prompt_line_1a$prompt_padding$prompt_hyphen$VCS_INFO_message_0_%F{$prompt_color1}$prompt_hyphen"
+            local prompt_padding
+            eval "prompt_padding=\${(l:${prompt_padding_size}::${prompt_hyphen}:)_empty_zz}"
+            prompt_line_1="$prompt_line_1a$prompt_padding$prompt_hyphen$VCS_INFO_message_0_%F{$prompt_color1}$prompt_hyphen"
         else
-        local prompt_pwd_size=$(( COLUMNS - 5 ))
-        prompt_line_1="$prompt_tbox$prompt_l_paren%B%F{$prompt_color2}%$prompt_pwd_size<...<%~%<<$prompt_r_paren%b%F{$prompt_color1}$prompt_hyphen"
+            prompt_padding_size=$(( COLUMNS - prompt_line_1a_width ))
+
+            # Didn't fit; try to fit in just long path
+            if (( prompt_padding_size > 0 )); then
+                eval "prompt_padding=\${(l:${prompt_padding_size}::${prompt_hyphen}:)_empty_zz}"
+                prompt_line_1="$prompt_line_1a$prompt_padding"
+            else
+                # Still didn't fit; truncate 
+                local prompt_pwd_size=$(( COLUMNS - 5 ))
+                prompt_line_1="$prompt_tbox$prompt_l_paren%B%F{$prompt_color2}%$prompt_pwd_size<...<%~%<<$prompt_r_paren%b%F{$prompt_color1}$prompt_hyphen"
+            fi
         fi
     fi
   
   
-    # Still didn't fit; truncate 
-
+    # And, makes it good
     PS1="$prompt_line_1$prompt_newline$prompt_line_2%B%F{red}${EXITCODE}%b%F{$prompt_color1}$prompt_hyphen%B%F{white}$prompt_char %b%f%k"
     PS2="$prompt_line_2$prompt_bbox_to_mbox%B%F{white}%_> %b%f%k"
     PS3="$prompt_line_2$prompt_bbox_to_mbox%B%F{white}?# %b%f%k"
+
+    # Text color and style for prompt
     zle_highlight[(r)default:*]="default:fg=$prompt_color4,bold"
 }
 
