@@ -146,20 +146,22 @@ battery() {
 batcolor() {
     battery
     if [ ! -z $PERCENT ]; then
-        if [ $PERCENT -gt 65 ]; then
-            BATTCOLOR="%F{green}"
+        if (acpi | head -n 1 | grep "Charging") 2> /dev/null 1>&2; then
+            BATTCOLOR="%F{cyan}"
         else
-            if [ $PERCENT -gt 32 ]; then
-                BATTCOLOR="%F{yellow}"
+            if [ $PERCENT -gt 65 ]; then
+            BATTCOLOR="%F{green}"
             else
-                BATTCOLOR="%F{red}"
+                if [ $PERCENT -gt 32 ]; then
+                    BATTCOLOR="%F{yellow}"
+                else
+                    BATTCOLOR="%F{red}"
+                fi
             fi
         fi
+        BATTERY="${BATTCOLOR} ${PERCENT} %%"
     else
-        BATTCOLOR=""
-    fi
-    if (acpi | head -n 1 | grep "Charging") 2> /dev/null 1>&2; then
-        BATTCOLOR="%F{cyan}"
+        BATTERY=""
     fi
 }
 

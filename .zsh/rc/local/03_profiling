@@ -1,0 +1,22 @@
+#!/bin/zsh
+
+chpwd_profile_default(){
+    [[ ${profile} == ${CHPWD_PROFILE} ]] && return 1
+    umask 022
+    return 0
+}
+
+chpwd_profile_sharedgit(){
+    [[ ${profile} == ${CHPWD_PROFILE} ]] && return 1
+    umask 002
+    git status 2> /dev/null
+
+    return 0
+}
+
+zstyle ':chpwd:profiles:/home/meh/git/scripts(|/|/*)'                     profile sharedgit
+zstyle ':chpwd:profiles:/home/meh/git/bcfg2(|/|/*)'                       profile sharedgit
+zstyle ':chpwd:profiles:/home/meh/git/lc_ldap(|/|/*)'                     profile sharedgit
+zstyle ':chpwd:profiles:/usr/scripts(|/|/*)'                      profile sharedgit
+zstyle ':chpwd:profiles:/usr/scripts/lc_ldap(|/|/*)'              profile sharedgit
+zstyle ':chpwd:profiles:/usr/scripts/intranet(|/|/*)'             profile sharedgit

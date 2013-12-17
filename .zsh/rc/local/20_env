@@ -1,0 +1,16 @@
+# This is personnal stuff containing emails, etc.
+# personnal mail
+export MAIL="user@domain.ext"
+export DEBEMAIL=$MAIL
+
+export PATH=$PATH:/home/meh/bin:/sbin:/usr/sbin
+
+#
+export LC_ALL=fr_FR.UTF-8
+
+# Darcs
+export DARCS_EMAIL="I'm so pretty <dude@darcs.ext>"
+
+# for pbuilder
+export BUILD_ROOT="~/pbuilder/custom/"
+
