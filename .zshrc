@@ -567,16 +567,16 @@ grmlcomp
 xsource "/etc/zsh/keephack"
 # }}}
 
+# Delete remaining xfunctions
+xunfunction
+
 #########################################
 ##      YOUR PERSONNAL STUFF HERE      ##
 #########################################
 
-# Print list of connected people
-# useful on multi sudoer server
-w
-
-# Delete remaining xfunctions
-xunfunction
-
+# Loads local zsh fun
+for file in $ZSHDIR/rc/local/*; do
+    source $file
+done
 # }}}
 
