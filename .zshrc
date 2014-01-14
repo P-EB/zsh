@@ -567,9 +567,6 @@ grmlcomp
 xsource "/etc/zsh/keephack"
 # }}}
 
-# Delete remaining xfunctions
-xunfunction
-
 #########################################
 ##      YOUR PERSONNAL STUFF HERE      ##
 #########################################
@@ -580,3 +577,5 @@ for file in $ZSHDIR/rc/local/*; do
 done
 # }}}
 
+# Delete remaining xfunctions (including salias)
+xunfunction
