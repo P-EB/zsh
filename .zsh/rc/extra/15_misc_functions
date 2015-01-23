@@ -542,3 +542,10 @@ H-Glob() {
   echo /proc/*/cwd(:h:t:s/self//) # Analogous to >ps ax | awk '{print $1}'<"
 }
 alias help-zshglob=H-Glob #dépendant du truc au dessus
+
+function swapfiles(){
+    TMPF="/tmp/tmp.$$"
+    mv -f $1 $TMPF
+    mv -f $2 $1
+    mv -f $TMPF $2
+}

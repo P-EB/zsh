@@ -112,7 +112,6 @@ setopt prompt_subst
 # make sure to use right prompt only when not running a command
 setopt transient_rprompt
 
-
 function ESC_print () {
     info_print $'\ek' $'\e\\' "$@"
 }
@@ -136,27 +135,6 @@ function info_print () {
 #|            PROMPT                    |
 #+--------------------------------------+
 
-# set colors for use in prompts {{{
-if zrcautoload colors 2> /dev/null && colors 2>/dev/null ; then
-    BLUE="${fg[blue]}"
-    RED="${fg_bold[red]}"
-    GREEN="${fg[green]}"
-    CYAN="${fg[cyan]}"
-    MAGENTA="${fg[magenta]}"
-    YELLOW="${fg[yellow]}"
-    WHITE="${fg[white]}"
-    NO_COLOUR="${reset_color}"
-else
-    BLUE=$'\e[1;34m'
-    RED=$'\e[1;31m'
-    GREEN=$'\e[1;32m'
-    CYAN=$'\e[1;36m'
-    WHITE=$'\e[1;37m'
-    MAGENTA=$'\e[1;35m'
-    YELLOW=$'\e[1;33m'
-    NO_COLOUR=$'\e[0m'
-fi
-
 # Change vcs_info formats for the grml prompt. The 2nd format sets up
 # $vcs_info_msg_1_ to contain "zsh: repo-name" used to set our screen title.
 # TODO: The included vcs_info() version still uses $VCS_INFO_message_N_.
@@ -171,24 +149,10 @@ else
                                        "(%s)-[%r/%b|%a]" 
     zstyle ':vcs_info:*' formats       "%F{magenta}(%F{no}%s%F{magenta})%F{yellow}-%F{magenta}[%F{green}%r%F{yellow}/%F{green}%b%F{magenta}]%F{no}" \
                                        "(%s)-[%r/%b]"
-    zstyle ':vcs_info:(sv[nk]|bzr):*' branchformat "%b{red}:{yellow}%r"
+    zstyle ':vcs_info:(sv[nk]|bzr):*' branchformat "%b%F{red}:%F{yellow}%r"
 fi
 
-# datecolor() {
-#     local H date coul
-#     H=$(date +"%H")
-#     date=$(date +"%H:%M:%S")
-# 
-#     if [ $H -gt 8 -a $H -lt 22 ]; then
-#         coul=${CYAN}
-#     else
-#         coul=${BLUE}
-#     fi
-# 
-#     echo "${coul}${date}${DC}"
-# }
-
-# Built from /usr/share/zsh/functions/Prompts/prompt_adam2…
+# Built using /usr/share/zsh/functions/Prompts/prompt_adam2…
 EXITCODE="%(?..[%?]%1v)"
 
 # Set of chars used in prompt
@@ -196,17 +160,19 @@ prompt_tlc='.'
 prompt_mlc='|'
 prompt_blc='\`'
 prompt_hyphen='-'
+
+# Set of colors used in prompt. This, dude, is sexy.
 prompt_color1='cyan'    # hyphens
 prompt_color2='green'   # current directory
-prompt_color3='cyan'   # user@host
-prompt_color4='red'   # user input
-prompt_color5='yellow'
+prompt_color3='yellow'  # user@host
+prompt_color4='cyan'    # user input
+prompt_color5='red'     # date
 
 # see man zshmisc for explanation about %B, %F, %b…
 prompt_tbox="%B%F{$prompt_color1}${prompt_tlc}%b%F{$prompt_color1}${prompt_hyphen}"
 prompt_bbox="%B%F{$prompt_color1}${prompt_blc}${prompt_hyphen}%b%F{$prompt_color1}"
 
-# This is a cute hack.  Well I like it, anyway.
+# This is a cute hack. Well I like it, anyway.
 prompt_bbox_to_mbox=$'%{\e[A\r'"%}%B%F{$prompt_color1}${prompt_mlc}%b%F{$prompt_color1}${prompt_hyphen}%{"$'\e[B%}'
 
 # left and right parenthesis
@@ -244,7 +210,6 @@ precmd () {
     
     # Generates battery info
     batcolor
-    BATTERY="${BATTCOLOR}${PERCENT} %%"
     RPROMPT="${BATTERY} ${RPROMPT}"
     
     # adjust title of xterm
@@ -321,35 +286,6 @@ preexec () {
             ;;
     esac
 }
-
-
-# # set variable debian_chroot if running in a chroot with /etc/debian_chroot
-# if [[ -z "$debian_chroot" ]] && [[ -r /etc/debian_chroot ]] ; then
-#     debian_chroot=$(cat /etc/debian_chroot)
-# fi
-# 
-# # don't use colors on dumb terminals (like emacs):
-# if [[ "$TERM" == dumb ]] ; then
-#     PROMPT="${debian_chroot:+($debian_chroot)}%n@%m %# "
-# else
-#     # only if $GRMLPROMPT is set (e.g. via 'GRMLPROMPT=1 zsh') use the extended prompt
-#     # set variable identifying the chroot you work in (used in the prompt below)
-#     if [[ $GRMLPROMPT -gt 0 ]] ; then
-#         PROMPT="${CYAN}[%j running job(s)] ${GREEN}{history#%!} ${RED}%(3L.+.) ${BLUE}%* %D${BLUE}%n${NO_COLOUR}@%m %# "
-#     else
-#         # This assembles the primary prompt string
-#         if (( EUID != 0 )); then
-#             PROMPT="%{${WHITE}%}${debian_chroot:+($debian_chroot)}%{${BLUE}%}%n%{${NO_COLOUR}%}@%m %# "
-#         else
-#             PROMPT="%{${WHITE}%}${debian_chroot:+($debian_chroot)}%{${RED}%}%n%{${NO_COLOUR}%}@%m %# "
-#         fi
-#     fi
-# fi
-
-# if we are inside a grml-chroot set a specific prompt theme
-# if [[ -n "$GRML_CHROOT" ]] ; then
-#     PROMPT="%{$fg[red]%}(CHROOT) %{$fg_bold[red]%}%n%{$fg_no_bold[white]%}@%m %40<...<%B%~%b%<< %\# "
-# fi
 
 # {{{ 'hash' some often used directories
 #d# start
@@ -571,11 +507,12 @@ xsource "/etc/zsh/keephack"
 ##      YOUR PERSONNAL STUFF HERE      ##
 #########################################
 
-# Loads local zsh fun
+# Loads local files
 for file in $ZSHDIR/rc/local/*; do
     source $file
 done
-# }}}
 
-# Delete remaining xfunctions (including salias)
+# Delete remaining xfunctions
 xunfunction
+
+# }}}

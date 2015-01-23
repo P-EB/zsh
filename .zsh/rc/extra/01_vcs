@@ -8,6 +8,7 @@
 
 # we will be using two variables, so let the code know now.
 zstyle ':vcs_info:*' max-exports 2
+zstyle ":vcs_info:init:*" "disable" "bzr" "hg" "svk" "cdv" "cvs" "mtn" "tla"
 
 # vcs_info() documentation:
 #{{{
@@ -590,7 +591,7 @@ VCS_INFO_svn_get_data () { # {{{
         svnbase="${svnbase}/.."
     done
     svnbase="$(VCS_INFO_realpath ${svnbase})"
-    svninfo=( ${${${(M)${(f)"$( svn info )"}:#(#s)(URL|Revision)*}/*: /}/*\//} )
+    svninfo=( ${${${(M)${(f)"$( svn info )"}:#(#s)(URL|Révision)*}/*: /}/*\//} ) # Beware language!
 
     zstyle -s ":vcs_info:${vcs}:${usercontext}" branchformat svnbranch || svnbranch="%b:%r"
     zformat -f svnbranch "${svnbranch}" "b:${svninfo[1]}" "r:${svninfo[2]}"
@@ -672,6 +673,7 @@ VCS_INFO_git_detect() { #{{{
 # }}}
 VCS_INFO_hg_detect() { #{{{
     VCS_INFO_check_com hg || return 1
+#    vcs_comm[basedir]=$(hg root 2>/dev/null) || return 1
     vcs_comm[detect_need_file]=store
     VCS_INFO_detect_by_dir '.hg'
     return $?
@@ -768,6 +770,7 @@ vcs_info () { # {{{
 
     vcs="init"
     VCSs=(git hg bzr darcs svk mtn svn cvs cdv tla)
+
     case $1 in
         (print_systems_)
             zstyle -a ":vcs_info:${vcs}:${usercontext}" "disable" disabled
