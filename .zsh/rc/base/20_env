@@ -23,12 +23,6 @@ check_com -c dircolors && eval $(dircolors -b)
 # Pager
 export PAGER=less
 
-# personnal mail
-# XXX fill if needed
-export MAIL=""
-export DEBEMAIL=$MAIL
-export DEBFULLNAME=""
-
 # While in doubt.
 export SHELL='/bin/zsh'
 
@@ -51,20 +45,6 @@ watch=(notme root) # watch for everyone but me and root
 typeset -U path cdpath fpath manpath
 # adding personnal completion files in fpath
 fpath=(~/.zsh/completion $fpath)
-
-# XXX fill if needed
-export PATH=$PATH:/sbin:/usr/sbin
-
-#
-export LC_ALL=fr_FR.UTF-8
-
-# Darcs
-# XXX fill if needed
-export DARCS_EMAIL=""
-
-# for pbuilder
-# XXX fill if needed
-#export BUILD_ROOT="~/crans/custom/"
 
 if [ $TERM = "rxvt-unicode-256color" ]; then
    export TERM=rxvt-unicode

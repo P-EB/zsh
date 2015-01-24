@@ -2,6 +2,7 @@
 # personnal mail
 export MAIL="user@domain.ext"
 export DEBEMAIL=$MAIL
+export DEBFULLNAME="My Name"
 
 export PATH=$PATH:/home/meh/bin:/sbin:/usr/sbin
 
