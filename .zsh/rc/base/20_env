@@ -10,13 +10,6 @@ xsource "/etc/sysconfig/keyboard"
 #Sets timezone
 TZ=$(xcat /etc/timezone)
 
-# set editor
-if check_com -c vim 2>&1; then
-    export EDITOR='vim'
-else
-    export EDITOR="nano"
-fi
-
 # color setup for ls:
 check_com -c dircolors && eval $(dircolors -b)
 

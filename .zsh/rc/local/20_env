@@ -15,3 +15,10 @@ export DARCS_EMAIL="I'm so pretty <dude@darcs.ext>"
 # for pbuilder
 export BUILD_ROOT="~/pbuilder/custom/"
 
+# set editor
+if check_com -c vim 2>&1; then
+    export EDITOR='vim'
+else
+    export EDITOR="nano"
+fi
+
