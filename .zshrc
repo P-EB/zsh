@@ -135,6 +135,27 @@ function info_print () {
 #|            PROMPT                    |
 #+--------------------------------------+
 
+# set colors for use in prompts (no longer useful, I'll trash it some day) {{{
+if zrcautoload colors 2> /dev/null && colors 2>/dev/null ; then
+    BLUE="${fg[blue]}"
+    RED="${fg_bold[red]}"
+    GREEN="${fg[green]}"
+    CYAN="${fg[cyan]}"
+    MAGENTA="${fg[magenta]}"
+    YELLOW="${fg[yellow]}"
+    WHITE="${fg[white]}"
+    NO_COLOUR="${reset_color}"
+else
+    BLUE=$'\e[1;34m'
+    RED=$'\e[1;31m'
+    GREEN=$'\e[1;32m'
+    CYAN=$'\e[1;36m'
+    WHITE=$'\e[1;37m'
+    MAGENTA=$'\e[1;35m'
+    YELLOW=$'\e[1;33m'
+    NO_COLOUR=$'\e[0m'
+fi
+
 # Change vcs_info formats for the grml prompt. The 2nd format sets up
 # $vcs_info_msg_1_ to contain "zsh: repo-name" used to set our screen title.
 # TODO: The included vcs_info() version still uses $VCS_INFO_message_N_.
@@ -286,6 +307,35 @@ preexec () {
             ;;
     esac
 }
+
+
+# # set variable debian_chroot if running in a chroot with /etc/debian_chroot
+# if [[ -z "$debian_chroot" ]] && [[ -r /etc/debian_chroot ]] ; then
+#     debian_chroot=$(cat /etc/debian_chroot)
+# fi
+# 
+# # don't use colors on dumb terminals (like emacs):
+# if [[ "$TERM" == dumb ]] ; then
+#     PROMPT="${debian_chroot:+($debian_chroot)}%n@%m %# "
+# else
+#     # only if $GRMLPROMPT is set (e.g. via 'GRMLPROMPT=1 zsh') use the extended prompt
+#     # set variable identifying the chroot you work in (used in the prompt below)
+#     if [[ $GRMLPROMPT -gt 0 ]] ; then
+#         PROMPT="${CYAN}[%j running job(s)] ${GREEN}{history#%!} ${RED}%(3L.+.) ${BLUE}%* %D${BLUE}%n${NO_COLOUR}@%m %# "
+#     else
+#         # This assembles the primary prompt string
+#         if (( EUID != 0 )); then
+#             PROMPT="%{${WHITE}%}${debian_chroot:+($debian_chroot)}%{${BLUE}%}%n%{${NO_COLOUR}%}@%m %# "
+#         else
+#             PROMPT="%{${WHITE}%}${debian_chroot:+($debian_chroot)}%{${RED}%}%n%{${NO_COLOUR}%}@%m %# "
+#         fi
+#     fi
+# fi
+
+# if we are inside a grml-chroot set a specific prompt theme
+# if [[ -n "$GRML_CHROOT" ]] ; then
+#     PROMPT="%{$fg[red]%}(CHROOT) %{$fg_bold[red]%}%n%{$fg_no_bold[white]%}@%m %40<...<%B%~%b%<< %\# "
+# fi
 
 # {{{ 'hash' some often used directories
 #d# start

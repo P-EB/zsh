@@ -1,6 +1,6 @@
 # This is personnal stuff containing emails, etc.
 # personnal mail
-export MAIL="user@domain.ext"
+export MAIL="user@example.com"
 export DEBEMAIL=$MAIL
 export DEBFULLNAME="My Name"
 
@@ -10,7 +10,7 @@ export PATH=$PATH:/home/meh/bin:/sbin:/usr/sbin
 export LC_ALL=fr_FR.UTF-8
 
 # Darcs
-export DARCS_EMAIL="I'm so pretty <dude@darcs.ext>"
+export DARCS_EMAIL="I'm so pretty <dude@example.com>"
 
 # for pbuilder
 export BUILD_ROOT="~/pbuilder/custom/"
