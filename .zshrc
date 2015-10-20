@@ -93,7 +93,7 @@ chpwd() {
     builtin print -l ${(u)my_stack} >! ${DIRSTACKFILE}
 }
 
-# In order to set prompt, and because we love confort
+# In order to set prompt, and because we love comfort
 # These files are not mandatory, but removing them
 # would break the PS1 prompt.
 for file in $ZSHDIR/rc/extra/*; do
@@ -182,7 +182,7 @@ prompt_mlc='|'
 prompt_blc='\`'
 prompt_hyphen='-'
 
-# Set of colors used in prompt. This, dude, is sexy.
+# Set of colors used in prompt.
 prompt_color1='cyan'    # hyphens
 prompt_color2='green'   # current directory
 prompt_color3='yellow'  # user@host
