@@ -55,27 +55,63 @@ alias top10='print -l ? ${(o)history%% *} | uniq -c | sort -nr | head -n 10'
 
 if [[ -r /etc/debian_version ]] ; then
     #a3# Execute \kbd{apt-cache search}
-    alias acs='apt-cache search'
+    if check_com -c apt; then
+        alias acs="apt search"
+    else
+        alias acs='apt-cache search'
+    fi
     #a3# Execute \kbd{apt-cache show}
-    alias acsh='apt-cache show'
+    if check_com -c apt; then
+        alias acsh="apt show"
+    else
+        alias acsh='apt-cache show'
+    fi
     #a3# Execute \kbd{apt-cache policy}
     alias acp='apt-cache policy'
     #a3# Execute \kbd{apt-get dist-upgrade}
-    salias adg="apt-get dist-upgrade"
+    if check_com -c apt; then
+        salias adg="apt full-upgrade"
+    else
+        salias adg='apt-get dist-upgrade'
+    fi
     #a3# Execute \kbd{apt-get install}
-    salias agi="apt-get install"
+    if check_com -c apt; then
+        salias agi="apt install"
+    else
+        salias agi='apt-get install'
+    fi
     #a3# Execute \kbd{aptitude install}
     salias ati="aptitude install"
     #a3# Execute \kbd{apt-get upgrade}
-    salias ag="apt-get upgrade"
+    if check_com -c apt; then
+        salias ag="apt upgrade"
+    else
+        salias ag='apt-get upgrade'
+    fi
     #a3# Execute \kbd{apt-get update}
-    salias au="apt-get update"
+    if check_com -c apt; then
+        salias au="apt update"
+    else
+        salias au='apt-get update'
+    fi
     #a3# Execute \kbd{aptitude update ; aptitude safe-upgrade}
     salias -a up="aptitude update ; aptitude safe-upgrade"
     #a3# Execute \kbd{dpkg-buildpackage}
     alias dbp='dpkg-buildpackage'
     #a3# Execute \kbd{grep-excuses}
     alias ge='grep-excuses'
+    #a3# Execute \kbd{apt-get remove}
+    if check_com -c apt; then
+        salias agr="apt remove"
+    else
+        salias agr='apt-get remove'
+    fi
+    #a3# Execute \kbd{apt-get purge}
+    salias agp='apt-get purge'
+    #a3# Execute \kbd{apt-get autoremove}
+    salias agar='apt-get autoremove'
+    #a3# Execute \kbd{apt-get autoremove} with purge option
+    salias agap='apt-get autoremove --purge'
 
     #a1# Take a look at the syslog: \kbd{\$PAGER /var/log/syslog}
     salias llog="$PAGER /var/log/syslog"     # take a look at the syslog
@@ -174,8 +210,6 @@ alias fblinks='links2 -driver fb'
 #a2# ssh with StrictHostKeyChecking=no \\&\quad and UserKnownHostsFile unset
 alias insecssh='ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null"'
 alias insecscp='scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null"'
-
-alias emacs='emacsclient --alternate-editor="" -nw'
 
 # simple webserver
 check_com -c python && alias http="python -m SimpleHTTPServer"
